@@ -13,7 +13,7 @@ app.secret_key = "secret_key_here"
 app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = 'Alcove@123'
-app.config['MYSQL_DB'] = 'fms_hr_recruitment_annex1'
+app.config['MYSQL_DB'] = 'alcovedb_2024'
 
 app.config['PROFILE_PHOTO_FOLDER'] = 'static/uploads/profile_photos'
 
@@ -209,7 +209,7 @@ def login():
         SELECT Emp_Code,password,Designation,Department,
         Admin,Photo_Link,Email_ID_Official,Contact_number,
         user_Access,Person_Accountable,Reporting_DOER
-        FROM Employee_Master
+        FROM fms_hr_recruitment_annex1.Employee_Master
         WHERE Emp_Code=%s AND STATUS='ACTIVE'
         """,(emp_code,))
 
@@ -268,7 +268,7 @@ def upload_photo():
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    UPDATE Employee_Master
+    UPDATE fms_hr_recruitment_annex1.Employee_Master
     SET Photo_Link=%s
     WHERE Emp_Code=%s
     """,(db_path,session['emp_code']))
@@ -345,7 +345,7 @@ def forgot_password():
 
         cur.execute("""
         SELECT password
-        FROM Employee_Master
+        FROM fms_hr_recruitment_annex1.Employee_Master
         WHERE Emp_Code=%s
         """,(emp_code,))
 
@@ -360,13 +360,13 @@ def forgot_password():
             return redirect(url_for('forgot_password'))
 
         cur.execute("""
-        UPDATE Employee_Master
+        UPDATE fms_hr_recruitment_annex1.Employee_Master
         SET password=%s
         WHERE Emp_Code=%s
         """,(new_password,emp_code))
 
         cur.execute("""
-        INSERT INTO Password_Records
+        INSERT INTO fms_hr_recruitment_annex1.Password_Records
         (Emp_Code,New_Password)
         VALUES(%s,%s)
         """,(emp_code,new_password))
@@ -404,7 +404,7 @@ def fms_hr_recruitment_next_stage(task_id):
 
     cur.execute("""
     SELECT workflow_stage
-    FROM recruitment_requests
+    FROM fms_hr_recruitment_annex1.recruitment_requests
     WHERE id=%s
     """,(task_id,))
 
@@ -419,7 +419,7 @@ def fms_hr_recruitment_next_stage(task_id):
     deadline = datetime.now() + timedelta(seconds=deadline_seconds)
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET workflow_stage=%s,
         stage_started_at=NOW(),
         deadline_at=%s
@@ -445,7 +445,7 @@ def fms_hr_recruitment_cancel(task_id):
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET status='CANCELLED'
     WHERE id=%s
     """,(task_id,))
@@ -464,7 +464,7 @@ def fms_hr_recruitment_panel():
     # FETCH PROJECTS
     cur.execute("""
         SELECT id, project_name
-        FROM projects
+        FROM fms_hr_recruitment_annex1.projects
         ORDER BY project_name
     """)
 
@@ -473,7 +473,7 @@ def fms_hr_recruitment_panel():
     # FETCH LOCATIONS
     cur.execute("""
         SELECT id, location_name
-        FROM locations
+        FROM fms_hr_recruitment_annex1.locations
         ORDER BY location_name
     """)
 
@@ -482,7 +482,7 @@ def fms_hr_recruitment_panel():
     # FETCH EMPLOYEES
     cur.execute("""
         SELECT Emp_Code, Person_Accountable
-        FROM Employee_Master
+        FROM fms_hr_recruitment_annex1.Employee_Master
         WHERE STATUS='ACTIVE'
     """)
 
@@ -491,7 +491,7 @@ def fms_hr_recruitment_panel():
     # FETCH RECRUITMENT TASKS
     cur.execute("""
                 SELECT *
-                FROM recruitment_requests
+                FROM fms_hr_recruitment_annex1.recruitment_requests
                 WHERE status = 'OPEN'
                 ORDER BY id DESC
                 """)
@@ -530,7 +530,7 @@ def fms_hr_recruitment_get_locations(project_id):
 
     cur.execute("""
         SELECT id, location_name
-        FROM locations
+        FROM fms_hr_recruitment_annex1.locations
         WHERE project_id=%s
         ORDER BY location_name
     """,(project_id,))
@@ -576,7 +576,7 @@ def fms_hr_recruitment_create():
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    INSERT INTO recruitment_requests(
+    INSERT INTO fms_hr_recruitment_annex1.recruitment_requests(
         project_id,
         job_designation,
         job_responsibilities,
@@ -641,7 +641,7 @@ def fms_hr_recruitment_approve(id):
 
     if decision == "YES":
         cur.execute("""
-        UPDATE recruitment_requests
+        UPDATE fms_hr_recruitment_annex1.recruitment_requests
         SET workflow_stage='P2',
             hr_manager_remarks=%s,
             hr_manager_approved_by=%s,
@@ -651,7 +651,7 @@ def fms_hr_recruitment_approve(id):
 
     else:
         cur.execute("""
-        UPDATE recruitment_requests
+        UPDATE fms_hr_recruitment_annex1.recruitment_requests
         SET status='CLOSED',
             hr_manager_remarks=%s,
             hr_manager_approved_by=%s,
@@ -707,7 +707,7 @@ def fms_hr_recruitment_groupd_check(id):
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET workflow_stage=%s
     WHERE id=%s
     """,(next_stage,id))
@@ -733,7 +733,7 @@ def fms_hr_recruitment_sitehr_approve(id):
 
     cur.execute("""
     SELECT workflow_stage
-    FROM recruitment_requests
+    FROM fms_hr_recruitment_annex1.recruitment_requests
     WHERE id=%s
     """,(id,))
 
@@ -751,7 +751,7 @@ def fms_hr_recruitment_sitehr_approve(id):
         return jsonify({"error":"Invalid stage"}),400
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET workflow_stage=%s,
         site_hr_remarks=%s
     WHERE id=%s
@@ -794,7 +794,7 @@ def fms_hr_recruitment_hod_final_approve(id):
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET workflow_stage='P14',
         hod_final_remarks=%s,
         hod_final_attachment=%s,
@@ -840,7 +840,7 @@ def fms_hr_recruitment_salary_confirm(id):
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET status='CLOSED',
         salary_confirmation_remarks=%s,
         salary_confirmation_attachment=%s,
@@ -865,7 +865,7 @@ def fms_hr_recruitment_stage_approve(id):
 
     cur.execute("""
     SELECT workflow_stage
-    FROM recruitment_requests
+    FROM fms_hr_recruitment_annex1.recruitment_requests
     WHERE id=%s
     """,(id,))
 
@@ -887,7 +887,7 @@ def fms_hr_recruitment_stage_approve(id):
 
     if stage == "P10":
         cur.execute("""
-        UPDATE recruitment_requests
+        UPDATE fms_hr_recruitment_annex1.recruitment_requests
         SET status='CLOSED',
             workflow_stage='P10',
             workflow_remarks=%s,
@@ -903,7 +903,7 @@ def fms_hr_recruitment_stage_approve(id):
         deadline = datetime.now() + timedelta(seconds=deadline_seconds)
 
         cur.execute("""
-        UPDATE recruitment_requests
+        UPDATE fms_hr_recruitment_annex1.recruitment_requests
         SET workflow_stage=%s,
             workflow_remarks=%s,
             workflow_attachment=%s,
@@ -958,7 +958,7 @@ def fms_hr_recruitment_candidate_decision(id):
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET workflow_stage=%s,
         candidate_decision=%s,
         candidate_decision_remarks=%s,
@@ -997,7 +997,7 @@ def fms_hr_recruitment_loi_process(id):
 
     cur.execute("""
     SELECT workflow_stage
-    FROM recruitment_requests
+    FROM fms_hr_recruitment_annex1.recruitment_requests
     WHERE id=%s
     """,(id,))
 
@@ -1012,7 +1012,7 @@ def fms_hr_recruitment_loi_process(id):
 
     if stage == "P10":
         cur.execute("""
-        UPDATE recruitment_requests
+        UPDATE fms_hr_recruitment_annex1.recruitment_requests
         SET status='CLOSED',
             workflow_stage='P10',
             loi_process_remarks=%s,
@@ -1025,7 +1025,7 @@ def fms_hr_recruitment_loi_process(id):
     else:
         next_stage = "P" + str(int(stage[1:]) + 1)
         cur.execute("""
-        UPDATE recruitment_requests
+        UPDATE fms_hr_recruitment_annex1.recruitment_requests
         SET workflow_stage=%s,
             loi_process_remarks=%s,
             loi_process_attachment=%s,

@@ -4,7 +4,7 @@ from flask_mysqldb import MySQL
 from werkzeug.utils import secure_filename
 from MySQLdb.cursors import DictCursor
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 # ================================== Connection to Flask app and Data base =============================================
 
 app = Flask(__name__)
@@ -13,13 +13,30 @@ app.secret_key = "secret_key_here"
 app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = 'Alcove@123'
-app.config['MYSQL_DB'] = 'fms_hr_recruitment_annex1'
+app.config['MYSQL_DB'] = 'alcovedb_2024'
 
 app.config['PROFILE_PHOTO_FOLDER'] = 'static/uploads/profile_photos'
 
 mysql = MySQL(app)
 
 # ================================= HR Recruitment Whitelisted Employees =================================
+WORKFLOW_POWERS = {
+    "P1": {"role": "HR_MANAGER", "action": "approve"},
+    "P2": {"role": "HR_EXECUTIVE", "action": "groupd"},
+    "P3": {"role": "HR_EXECUTIVE", "action": "approve"},
+    "P4": {"role": "HR_EXECUTIVE", "action": "approve"},
+    "P5": {"role": "HR_EXECUTIVE", "action": "approve"},
+    "P6": {"role": "HOD", "action": "shortlist"},
+    "P7": {"role": "HR_EXECUTIVE", "action": "approve"},
+    "P8": {"role": "HOD", "action": "candidate"},
+    "P9": {"role": "HR_MANAGER", "action": "approve_loi"},
+    "P10": {"role": "HR_EXECUTIVE", "action": "send_it"},
+    "P11": {"role": "SITE_HR", "action": "approve_cv"},
+    "P12": {"role": "SITE_HR", "action": "interview_done"},
+    "P13": {"role": "HOD", "action": "final_approve"},
+    "P14": {"role": "SITE_HR", "action": "salary_confirm"}
+}
+
 WORKFLOW_HELP = {
 
 "P1":{
@@ -192,7 +209,7 @@ def login():
         SELECT Emp_Code,password,Designation,Department,
         Admin,Photo_Link,Email_ID_Official,Contact_number,
         user_Access,Person_Accountable,Reporting_DOER
-        FROM Employee_Master
+        FROM fms_hr_recruitment_annex1.Employee_Master
         WHERE Emp_Code=%s AND STATUS='ACTIVE'
         """,(emp_code,))
 
@@ -251,7 +268,7 @@ def upload_photo():
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    UPDATE Employee_Master
+    UPDATE fms_hr_recruitment_annex1.Employee_Master
     SET Photo_Link=%s
     WHERE Emp_Code=%s
     """,(db_path,session['emp_code']))
@@ -280,7 +297,7 @@ def dashboard():
     if emp_code in HR_ALL_ACCESS|HOD_IDS:
 
         fixed_menus["HR Recruitment"] = [
-            ("Recruitment Panel", url_for("recruitment_panel"))
+            ("Recruitment Panel", url_for('fms_hr_recruitment_panel'))
         ]
     return render_template(
         "dashboard.html",
@@ -328,7 +345,7 @@ def forgot_password():
 
         cur.execute("""
         SELECT password
-        FROM Employee_Master
+        FROM fms_hr_recruitment_annex1.Employee_Master
         WHERE Emp_Code=%s
         """,(emp_code,))
 
@@ -343,13 +360,13 @@ def forgot_password():
             return redirect(url_for('forgot_password'))
 
         cur.execute("""
-        UPDATE Employee_Master
+        UPDATE fms_hr_recruitment_annex1.Employee_Master
         SET password=%s
         WHERE Emp_Code=%s
         """,(new_password,emp_code))
 
         cur.execute("""
-        INSERT INTO Password_Records
+        INSERT INTO fms_hr_recruitment_annex1.Password_Records
         (Emp_Code,New_Password)
         VALUES(%s,%s)
         """,(emp_code,new_password))
@@ -376,7 +393,7 @@ def logout():
 # ================================= Recruitment APIs =======================================
 
 @app.route('/recruitment/<int:task_id>/next', methods=['POST'])
-def recruitment_next_stage(task_id):
+def fms_hr_recruitment_next_stage(task_id):
 
     if 'emp_code' not in session:
         return redirect(url_for('login'))
@@ -387,7 +404,7 @@ def recruitment_next_stage(task_id):
 
     cur.execute("""
     SELECT workflow_stage
-    FROM recruitment_requests
+    FROM fms_hr_recruitment_annex1.recruitment_requests
     WHERE id=%s
     """,(task_id,))
 
@@ -399,10 +416,10 @@ def recruitment_next_stage(task_id):
 
     deadline_seconds = STAGE_TIME_LIMITS.get(next_stage,0)
 
-    deadline = datetime.datetime.now() + datetime.timedelta(seconds=deadline_seconds)
+    deadline = datetime.now() + timedelta(seconds=deadline_seconds)
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET workflow_stage=%s,
         stage_started_at=NOW(),
         deadline_at=%s
@@ -415,7 +432,7 @@ def recruitment_next_stage(task_id):
 # ================================= Cancel Recruitment ======================================
 
 @app.route('/recruitment/<int:task_id>/cancel', methods=['POST'])
-def cancel_recruitment(task_id):
+def fms_hr_recruitment_cancel(task_id):
 
     if 'emp_code' not in session:
         return redirect(url_for('login'))
@@ -428,7 +445,7 @@ def cancel_recruitment(task_id):
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET status='CANCELLED'
     WHERE id=%s
     """,(task_id,))
@@ -437,7 +454,7 @@ def cancel_recruitment(task_id):
 
     return jsonify({"message":"Task Cancelled"})
 @app.route('/recruitment')
-def recruitment_panel():
+def fms_hr_recruitment_panel():
 
     if 'emp_code' not in session:
         return redirect(url_for('login'))
@@ -447,7 +464,7 @@ def recruitment_panel():
     # FETCH PROJECTS
     cur.execute("""
         SELECT id, project_name
-        FROM projects
+        FROM fms_hr_recruitment_annex1.projects
         ORDER BY project_name
     """)
 
@@ -456,7 +473,7 @@ def recruitment_panel():
     # FETCH LOCATIONS
     cur.execute("""
         SELECT id, location_name
-        FROM locations
+        FROM fms_hr_recruitment_annex1.locations
         ORDER BY location_name
     """)
 
@@ -465,7 +482,7 @@ def recruitment_panel():
     # FETCH EMPLOYEES
     cur.execute("""
         SELECT Emp_Code, Person_Accountable
-        FROM Employee_Master
+        FROM fms_hr_recruitment_annex1.Employee_Master
         WHERE STATUS='ACTIVE'
     """)
 
@@ -474,7 +491,7 @@ def recruitment_panel():
     # FETCH RECRUITMENT TASKS
     cur.execute("""
                 SELECT *
-                FROM recruitment_requests
+                FROM fms_hr_recruitment_annex1.recruitment_requests
                 WHERE status = 'OPEN'
                 ORDER BY id DESC
                 """)
@@ -485,12 +502,14 @@ def recruitment_panel():
 
     for t in all_tasks:
 
-        if can_view_task(session['emp_code'], t["workflow_stage"]):
+        if fms_hr_recruitment_can_view_task(session['emp_code'], t["workflow_stage"]):
             tasks.append(t)
 
     return render_template(
         "recruitment.html",
+        powers=WORKFLOW_POWERS,
         projects=projects,
+
         locations=locations,
         employees=employees,
         tasks=tasks,
@@ -500,16 +519,18 @@ def recruitment_panel():
         emp_code=session["emp_code"],
         photo=session["photo"],
         can_create=session["emp_code"] in HOD_IDS,
-        is_hr_manager=session["emp_code"] in HR_MANAGER_IDS
+        is_hr_manager=session["emp_code"] in HR_MANAGER_IDS,
+        is_hod = session["emp_code"] in HOD_IDS
+
     )
 @app.route('/locations/<int:project_id>')
-def get_locations(project_id):
+def fms_hr_recruitment_get_locations(project_id):
 
     cur = mysql.connection.cursor(DictCursor)
 
     cur.execute("""
         SELECT id, location_name
-        FROM locations
+        FROM fms_hr_recruitment_annex1.locations
         WHERE project_id=%s
         ORDER BY location_name
     """,(project_id,))
@@ -520,7 +541,7 @@ def get_locations(project_id):
 
     return jsonify(locations)
 @app.route('/recruitment/create', methods=['POST'])
-def create_recruitment():
+def fms_hr_recruitment_create():
 
     if 'emp_code' not in session:
         return redirect(url_for('login'))
@@ -540,70 +561,70 @@ def create_recruitment():
     number_of_positions = request.form['number_of_positions']
     additional_note = request.form['additional_note']
 
-    # File upload
     attachment = request.files.get('attachment')
     attachment_path = None
 
     if attachment and attachment.filename != "":
         filename = secure_filename(attachment.filename)
-
-        upload_folder = "static/uploads/recruitment"
-
-        os.makedirs(upload_folder, exist_ok=True)
-
-        attachment.save(os.path.join(upload_folder, filename))
-
+        folder = "static/uploads/recruitment"
+        os.makedirs(folder, exist_ok=True)
+        attachment.save(os.path.join(folder, filename))
         attachment_path = f"uploads/recruitment/{filename}"
+
+    deadline = datetime.now() + timedelta(seconds=STAGE_TIME_LIMITS["P1"])
 
     cur = mysql.connection.cursor()
 
     cur.execute("""
-                INSERT INTO recruitment_requests(project_id,
-                                                 job_designation,
-                                                 job_responsibilities,
-                                                 attachment_path,
-                                                 location_id,
-                                                 reporting_authority_id,
-                                                 position_type,
-                                                 replacement_employee_id,
-                                                 educational_qualification,
-                                                 experience_required,
-                                                 gender_preference,
-                                                 age,
-                                                 monthly_gross_salary,
-                                                 number_of_positions,
-                                                 additional_note,
-                                                 workflow_stage,
-                                                 stage_started_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'P1', NOW())
-                """,
-                (
-                    project_id,
-                    job_designation,
-                    job_responsibilities,
-                    attachment_path,
-                    location_id,
-                    reporting_authority_id,
-                    position_type,
-                    replacement_employee_id,
-                    educational_qualification,
-                    experience_required,
-                    gender_preference,
-                    age,
-                    monthly_gross_salary,
-                    number_of_positions,
-                    additional_note
-                ))
+    INSERT INTO fms_hr_recruitment_annex1.recruitment_requests(
+        project_id,
+        job_designation,
+        job_responsibilities,
+        attachment_path,
+        location_id,
+        reporting_authority_id,
+        position_type,
+        replacement_employee_id,
+        educational_qualification,
+        experience_required,
+        gender_preference,
+        age,
+        monthly_gross_salary,
+        number_of_positions,
+        additional_note,
+        workflow_stage,
+        stage_started_at,
+        deadline_at
+    )
+    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'P1',NOW(),%s)
+    """,
+    (
+        project_id,
+        job_designation,
+        job_responsibilities,
+        attachment_path,
+        location_id,
+        reporting_authority_id,
+        position_type,
+        replacement_employee_id,
+        educational_qualification,
+        experience_required,
+        gender_preference,
+        age,
+        monthly_gross_salary,
+        number_of_positions,
+        additional_note,
+        deadline
+    ))
 
     mysql.connection.commit()
-
     cur.close()
 
-    flash("Recruitment request created successfully", "success")
+    flash("Recruitment request created successfully","success")
 
-    return redirect(url_for('recruitment_panel'))
+    return redirect(url_for('fms_hr_recruitment_panel'))
 @app.route('/recruitment/<int:id>/approve', methods=['POST'])
-def approve_recruitment(id):
+def fms_hr_recruitment_approve(id):
 
     if 'emp_code' not in session:
         return redirect(url_for('login'))
@@ -611,26 +632,39 @@ def approve_recruitment(id):
     emp_code = session['emp_code']
 
     if emp_code not in HR_MANAGER_IDS:
-        return jsonify({"error":"Unauthorized"}),403
+        return jsonify({"error":"Unauthorized"}), 403
 
+    decision = request.form['decision']
     remarks = request.form['remarks']
 
     cur = mysql.connection.cursor()
 
-    cur.execute("""
-    UPDATE recruitment_requests
-    SET workflow_stage='P2',
-        hr_manager_remarks=%s,
-        hr_manager_approved_by=%s,
-        hr_manager_approved_at=NOW()
-    WHERE id=%s
-    """,(remarks,emp_code,id))
+    if decision == "YES":
+        cur.execute("""
+        UPDATE fms_hr_recruitment_annex1.recruitment_requests
+        SET workflow_stage='P2',
+            hr_manager_remarks=%s,
+            hr_manager_approved_by=%s,
+            hr_manager_approved_at=NOW()
+        WHERE id=%s
+        """,(remarks, emp_code, id))
+
+    else:
+        cur.execute("""
+        UPDATE fms_hr_recruitment_annex1.recruitment_requests
+        SET status='CLOSED',
+            hr_manager_remarks=%s,
+            hr_manager_approved_by=%s,
+            hr_manager_approved_at=NOW()
+        WHERE id=%s
+        """,(remarks, emp_code, id))
 
     mysql.connection.commit()
     cur.close()
 
-    return redirect(url_for('recruitment_panel'))
-def can_view_task(emp_code, stage):
+    flash("Recruitment request updated successfully", "success")
+    return redirect(url_for('fms_hr_recruitment_panel'))
+def fms_hr_recruitment_can_view_task(emp_code, stage):
 
     # HR Manager can see all stages
     if emp_code in HR_MANAGER_IDS:
@@ -639,13 +673,10 @@ def can_view_task(emp_code, stage):
     if stage == "P0":
         return emp_code in HOD_IDS
 
-    if stage == "P2":
+    if stage in ["P2","P3","P4","P5","P7"]:
         return emp_code in HR_EXECUTIVE_IDS
 
-    if stage in ["P3","P4","P5","P6","P7"]:
-        return emp_code in HR_EXECUTIVE_IDS
-
-    if stage == "P8":
+    if stage in ["P6","P8","P13"]:
         return emp_code in HOD_IDS
 
     if stage == "P10":
@@ -654,12 +685,9 @@ def can_view_task(emp_code, stage):
     if stage in ["P11","P12","P14"]:
         return emp_code in SITE_HR_EXECUTIVE_IDS
 
-    if stage == "P13":
-        return emp_code in HOD_IDS
-
     return False
 @app.route('/recruitment/<int:id>/groupd', methods=['POST'])
-def groupd_check(id):
+def fms_hr_recruitment_groupd_check(id):
 
     if 'emp_code' not in session:
         return redirect(url_for('login'))
@@ -679,7 +707,7 @@ def groupd_check(id):
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET workflow_stage=%s
     WHERE id=%s
     """,(next_stage,id))
@@ -687,9 +715,9 @@ def groupd_check(id):
     mysql.connection.commit()
     cur.close()
 
-    return redirect(url_for('recruitment_panel'))
+    return redirect(url_for('fms_hr_recruitment_panel'))
 @app.route('/recruitment/<int:id>/sitehr_approve', methods=['POST'])
-def sitehr_approve(id):
+def fms_hr_recruitment_sitehr_approve(id):
 
     if 'emp_code' not in session:
         return redirect(url_for('login'))
@@ -705,7 +733,7 @@ def sitehr_approve(id):
 
     cur.execute("""
     SELECT workflow_stage
-    FROM recruitment_requests
+    FROM fms_hr_recruitment_annex1.recruitment_requests
     WHERE id=%s
     """,(id,))
 
@@ -723,7 +751,7 @@ def sitehr_approve(id):
         return jsonify({"error":"Invalid stage"}),400
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET workflow_stage=%s,
         site_hr_remarks=%s
     WHERE id=%s
@@ -732,9 +760,9 @@ def sitehr_approve(id):
     mysql.connection.commit()
     cur.close()
 
-    return redirect(url_for('recruitment_panel'))
+    return redirect(url_for('fms_hr_recruitment_panel'))
 @app.route('/recruitment/<int:id>/hod_final_approve', methods=['POST'])
-def hod_final_approve(id):
+def fms_hr_recruitment_hod_final_approve(id):
 
     if 'emp_code' not in session:
         return redirect(url_for('login'))
@@ -766,7 +794,7 @@ def hod_final_approve(id):
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET workflow_stage='P14',
         hod_final_remarks=%s,
         hod_final_attachment=%s,
@@ -778,9 +806,9 @@ def hod_final_approve(id):
     mysql.connection.commit()
     cur.close()
 
-    return redirect(url_for('recruitment_panel'))
+    return redirect(url_for('fms_hr_recruitment_panel'))
 @app.route('/recruitment/<int:id>/salary_confirm', methods=['POST'])
-def salary_confirm(id):
+def fms_hr_recruitment_salary_confirm(id):
 
     if 'emp_code' not in session:
         return redirect(url_for('login'))
@@ -812,7 +840,7 @@ def salary_confirm(id):
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET status='CLOSED',
         salary_confirmation_remarks=%s,
         salary_confirmation_attachment=%s,
@@ -824,9 +852,9 @@ def salary_confirm(id):
     mysql.connection.commit()
     cur.close()
 
-    return redirect(url_for('recruitment_panel'))
+    return redirect(url_for('fms_hr_recruitment_panel'))
 @app.route('/recruitment/<int:id>/stage_approve', methods=['POST'])
-def stage_approve(id):
+def fms_hr_recruitment_stage_approve(id):
 
     if 'emp_code' not in session:
         return redirect(url_for('login'))
@@ -837,19 +865,12 @@ def stage_approve(id):
 
     cur.execute("""
     SELECT workflow_stage
-    FROM recruitment_requests
+    FROM fms_hr_recruitment_annex1.recruitment_requests
     WHERE id=%s
     """,(id,))
 
     task = cur.fetchone()
-
     stage = task["workflow_stage"]
-
-    next_stage = "P"+str(int(stage[1:])+1)
-
-    deadline_seconds = STAGE_TIME_LIMITS.get(next_stage,0)
-
-    deadline = datetime.datetime.now() + datetime.timedelta(seconds=deadline_seconds)
 
     remarks = request.form['remarks']
     file = request.files.get("attachment")
@@ -857,36 +878,48 @@ def stage_approve(id):
     attachment_path = None
 
     if file and file.filename:
-
         filename = secure_filename(file.filename)
-
         folder = "static/uploads/workflow"
-
         os.makedirs(folder, exist_ok=True)
-
         path = os.path.join(folder, filename)
-
         file.save(path)
-
         attachment_path = f"uploads/workflow/{filename}"
 
-    cur.execute("""
-    UPDATE recruitment_requests
-    SET workflow_stage=%s,
-        workflow_remarks=%s,
-        workflow_attachment=%s,
-        workflow_updated_by=%s,
-        workflow_updated_at=NOW(),
-        stage_started_at=NOW(),
-        deadline_at=%s
-    WHERE id=%s
-    """,(next_stage,remarks,attachment_path,emp_code,deadline,id))
+    if stage == "P10":
+        cur.execute("""
+        UPDATE fms_hr_recruitment_annex1.recruitment_requests
+        SET status='CLOSED',
+            workflow_stage='P10',
+            workflow_remarks=%s,
+            workflow_attachment=%s,
+            workflow_updated_by=%s,
+            workflow_updated_at=NOW()
+        WHERE id=%s
+        """,(remarks, attachment_path, emp_code, id))
+
+    else:
+        next_stage = "P" + str(int(stage[1:]) + 1)
+        deadline_seconds = STAGE_TIME_LIMITS.get(next_stage, 0)
+        deadline = datetime.now() + timedelta(seconds=deadline_seconds)
+
+        cur.execute("""
+        UPDATE fms_hr_recruitment_annex1.recruitment_requests
+        SET workflow_stage=%s,
+            workflow_remarks=%s,
+            workflow_attachment=%s,
+            workflow_updated_by=%s,
+            workflow_updated_at=NOW(),
+            stage_started_at=NOW(),
+            deadline_at=%s
+        WHERE id=%s
+        """,(next_stage, remarks, attachment_path, emp_code, deadline, id))
 
     mysql.connection.commit()
+    cur.close()
 
-    return redirect(url_for('recruitment_panel'))
+    return redirect(url_for('fms_hr_recruitment_panel'))
 @app.route('/recruitment/<int:id>/candidate_decision', methods=['POST'])
-def candidate_decision(id):
+def fms_hr_recruitment_candidate_decision(id):
 
     if 'emp_code' not in session:
         return redirect(url_for('login'))
@@ -925,7 +958,7 @@ def candidate_decision(id):
     cur = mysql.connection.cursor()
 
     cur.execute("""
-    UPDATE recruitment_requests
+    UPDATE fms_hr_recruitment_annex1.recruitment_requests
     SET workflow_stage=%s,
         candidate_decision=%s,
         candidate_decision_remarks=%s,
@@ -938,9 +971,9 @@ def candidate_decision(id):
     mysql.connection.commit()
     cur.close()
 
-    return redirect(url_for('recruitment_panel'))
+    return redirect(url_for('fms_hr_recruitment_panel'))
 @app.route('/recruitment/<int:id>/loi_process', methods=['POST'])
-def loi_process(id):
+def fms_hr_recruitment_loi_process(id):
 
     if 'emp_code' not in session:
         return redirect(url_for('login'))
@@ -953,54 +986,59 @@ def loi_process(id):
     attachment_path = None
 
     if file and file.filename:
-
         filename = secure_filename(file.filename)
-
         folder = "static/uploads/loi_process"
-
         os.makedirs(folder, exist_ok=True)
-
         path = os.path.join(folder, filename)
-
         file.save(path)
-
         attachment_path = f"uploads/loi_process/{filename}"
 
     cur = mysql.connection.cursor(DictCursor)
 
     cur.execute("""
     SELECT workflow_stage
-    FROM recruitment_requests
+    FROM fms_hr_recruitment_annex1.recruitment_requests
     WHERE id=%s
     """,(id,))
 
     task = cur.fetchone()
-
     stage = task["workflow_stage"]
 
-    # Role validation
     if stage == "P9" and emp_code not in HR_MANAGER_IDS:
         return jsonify({"error":"Only HR Manager allowed"}),403
 
     if stage == "P10" and emp_code not in HR_EXECUTIVE_IDS:
         return jsonify({"error":"Only HR Executive allowed"}),403
 
-    next_stage = "P"+str(int(stage[1:])+1)
+    if stage == "P10":
+        cur.execute("""
+        UPDATE fms_hr_recruitment_annex1.recruitment_requests
+        SET status='CLOSED',
+            workflow_stage='P10',
+            loi_process_remarks=%s,
+            loi_process_attachment=%s,
+            loi_processed_by=%s,
+            loi_processed_at=NOW()
+        WHERE id=%s
+        """,(remarks, attachment_path, emp_code, id))
 
-    cur.execute("""
-    UPDATE recruitment_requests
-    SET workflow_stage=%s,
-        loi_process_remarks=%s,
-        loi_process_attachment=%s,
-        loi_processed_by=%s,
-        loi_processed_at=NOW()
-    WHERE id=%s
-    """,(next_stage,remarks,attachment_path,emp_code,id))
+    else:
+        next_stage = "P" + str(int(stage[1:]) + 1)
+        cur.execute("""
+        UPDATE fms_hr_recruitment_annex1.recruitment_requests
+        SET workflow_stage=%s,
+            loi_process_remarks=%s,
+            loi_process_attachment=%s,
+            loi_processed_by=%s,
+            loi_processed_at=NOW()
+        WHERE id=%s
+        """,(next_stage, remarks, attachment_path, emp_code, id))
 
     mysql.connection.commit()
     cur.close()
 
-    return redirect(url_for('recruitment_panel'))
+    return redirect(url_for('fms_hr_recruitment_panel'))
+
 # ================================= Run Server ==============================================
 
 if __name__ == "__main__":
