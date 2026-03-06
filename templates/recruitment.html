@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HR Recruitment</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="{{ url_for('static', filename='images/Logo.png') }}">
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+
+<style>
+:root {
+  --primary: #0ea5e9;
+  --dark-nav: #0f172a;
+  --bg: #e8f4f8;
+  --card-shadow: 0 2px 12px rgba(0,0,0,0.09);
+}
+
+body {
+  background: var(--bg);
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+}
+
+/* ── TOPNAV ── */
+.top-navbar {
+  background: var(--dark-nav);
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 62px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.top-navbar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.top-navbar .brand img {
+  height: 38px;
+}
+
+.top-navbar .brand-text {
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+}
+
+.top-navbar .brand-text span {
+  color: var(--primary);
+}
+
+.top-navbar .nav-center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.top-navbar .nav-pill {
+  color: #cbd5e1;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.top-navbar .nav-pill:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  text-decoration: none;
+}
+
+.top-navbar .nav-pill.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.top-navbar .nav-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.profile-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 30px;
+  padding: 4px 12px 4px 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-decoration: none;
+}
+
+.profile-chip:hover {
+  background: rgba(255,255,255,0.15);
+  text-decoration: none;
+}
+
+.profile-chip img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary);
+}
+
+.profile-chip .chip-info {
+  line-height: 1.2;
+}
+
+.profile-chip .chip-name {
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.profile-chip .chip-id {
+  color: #94a3b8;
+  font-size: 0.73rem;
+}
+
+.btn-back-dash {
+  background: rgba(14,165,233,0.15);
+  border: 1px solid rgba(14,165,233,0.35);
+  color: var(--primary);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btn-back-dash:hover {
+  background: var(--primary);
+  color: #fff;
+  text-decoration: none;
+}
+
+/* ── MAIN CONTENT ── */
+.main-content {
+  padding: 24px 28px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.page-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-title i {
+  color: var(--primary);
+}
+
+/* ── CARD ── */
+.card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  margin-bottom: 22px;
+}
+
+.card-header {
+  border-radius: 12px 12px 0 0 !important;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.3px;
+}
+
+/* ── HELP BADGE in table ── */
+.stage-badge {
+  display: inline-block;
+  background: #e0f2fe;
+  color: #0369a1;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ── NEXT STEP LABEL ── */
+.next-step-label {
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.3;
+}
+
+.next-step-label strong {
+  color: #0f172a;
+  font-size: 0.83rem;
+}
+
+/* ── DEADLINE BADGE ── */
+.badge-deadline-ok { background: #d1fae5; color: #065f46; padding: 4px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.badge-deadline-miss { background: #fee2e2; color: #991b1b; padding: 4px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+
+/* ── TABLE ── */
+.table th {
+  background: #f1f5f9;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  border-bottom: 2px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.table td {
+  vertical-align: middle;
+  font-size: 0.88rem;
+  color: #1e293b;
+}
+
+.table-hover tbody tr:hover {
+  background: #f0f9ff;
+}
+
+/* ── ACTION BUTTONS in table ── */
+.action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+/* ── FORM CARD ── */
+#recruitmentForm .card-header {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  color: #fff;
+}
+
+label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 3px;
+}
+
+.form-control {
+  border-radius: 7px;
+  border: 1px solid #d1d5db;
+  font-size: 0.87rem;
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.15);
+}
+
+/* ── MODAL ── */
+.modal-header {
+  background: #0f172a;
+  color: #fff;
+  border-radius: 8px 8px 0 0;
+}
+
+.modal-header .close {
+  color: #fff;
+  opacity: 0.8;
+}
+
+.modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.modal-body label {
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+/* ── HELP TOOLTIP CARD ── */
+.help-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.help-card .hc-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin-bottom: 2px;
+}
+
+.help-card .hc-label {
+  font-weight: 700;
+  color: #334155;
+  min-width: 38px;
+}
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #94a3b8;
+}
+
+.empty-state i {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .top-navbar .nav-center { display: none; }
+  .main-content { padding: 16px; }
+  .brand-text { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════
+     TOP NAVBAR
+══════════════════════════════════ -->
+<nav class="top-navbar">
+
+  <!-- Brand -->
+  <div class="brand">
+    <img src="{{ url_for('static', filename='images/Logo.png') }}" alt="FMS Logo"
+         onerror="this.style.display='none'">
+    <span class="brand-text">FMS <span>HR</span></span>
+  </div>
+
+  <!-- Center nav links -->
+  <div class="nav-center">
+    <a href="{{ url_for('dashboard') }}" class="nav-pill">
+      <i class="fas fa-th-large"></i> Dashboard
+    </a>
+    <a href="{{ url_for('fms_hr_recruitment_panel') }}" class="nav-pill active">
+      <i class="fas fa-users"></i> HR Recruitment
+    </a>
+  </div>
+
+  <!-- Right: profile + back button -->
+  <div class="nav-right">
+
+    <a href="{{ url_for('dashboard') }}" class="btn-back-dash">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+
+    <div class="profile-chip" title="{{ person_Accountable }}">
+      <img src="{{ url_for('static', filename=photo) if photo else url_for('static', filename='images/placeholder-user.png') }}"
+           alt="Profile"
+           onerror="this.src='{{ url_for('static', filename='images/placeholder-user.png') }}'">
+      <div class="chip-info">
+        <div class="chip-name">{{ person_Accountable }}</div>
+        <div class="chip-id">{{ emp_code }}</div>
+      </div>
+    </div>
+
+    <a href="{{ url_for('logout') }}" class="nav-pill" title="Logout"
+       style="padding:6px 10px;"
+       onclick="return confirm('Logout?')">
+      <i class="fas fa-sign-out-alt"></i>
+    </a>
+
+  </div>
+</nav>
+
+
+<!-- ══════════════════════════════════
+     MAIN CONTENT
+══════════════════════════════════ -->
+<div class="main-content">
+
+  <!-- Page header + create button -->
+  <div class="page-header">
+    <div class="page-title">
+      <i class="fas fa-stream"></i>
+      Recruitment Workflow
+    </div>
+
+    {% if can_create %}
+    <button class="btn btn-primary" onclick="toggleForm()">
+      <i class="fas fa-plus mr-1"></i> New Recruitment Request
+    </button>
+    {% endif %}
+  </div>
+
+
+  <!-- ── CREATE FORM (HOD only) ── -->
+  <div id="recruitmentForm" style="display:none">
+    <div class="card mb-4">
+      <div class="card-header">
+        <i class="fas fa-file-alt mr-2"></i> Recruitment Request Form
+      </div>
+      <div class="card-body">
+        <form method="POST" action="/recruitment/create" enctype="multipart/form-data">
+
+          <div class="row">
+            <div class="col-md-6 form-group">
+              <label>Project</label>
+              <select class="form-control" name="project_id" id="projectSelect"
+                      onchange="loadLocations()" required>
+                {% for p in projects %}
+                <option value="{{ p.id }}">{{ p.project_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6 form-group">
+              <label>Job Designation</label>
+              <input class="form-control" name="job_designation" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Job Responsibilities</label>
+            <textarea class="form-control" rows="3" name="job_responsibilities" required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Attachment</label>
+            <input type="file" class="form-control-file" name="attachment">
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 form-group">
+              <label>Location</label>
+              <select class="form-control" name="location_id" id="locationSelect" required>
+                {% for l in locations %}
+                <option value="{{ l.id }}">{{ l.location_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6 form-group">
+              <label>Reporting Authority</label>
+              <select class="form-control" name="reporting_authority_id" required>
+                {% for e in employees %}
+                <option value="{{ e.Emp_Code }}">{{ e.Person_Accountable }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 form-group">
+              <label>Position Type</label>
+              <select class="form-control" name="position_type"
+                      onchange="toggleReplacement(this.value)" required>
+                <option value="NEW">New</option>
+                <option value="REPLACEMENT">Replacement</option>
+              </select>
+            </div>
+
+            <div class="col-md-6 form-group" id="replacementBox" style="display:none">
+              <label>Replacement Employee</label>
+              <select class="form-control" name="replacement_employee_id">
+                {% for e in employees %}
+                <option value="{{ e.Emp_Code }}">{{ e.Person_Accountable }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Educational Qualification</label>
+            <input class="form-control" name="educational_qualification" required>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4 form-group">
+              <label>Experience Required</label>
+              <select class="form-control" name="experience_required">
+                <option>Fresher</option>
+                <option>1</option><option>2</option><option>3</option>
+                <option>5</option><option>7</option><option>10+</option>
+              </select>
+            </div>
+
+            <div class="col-md-4 form-group">
+              <label>Gender Preference</label>
+              <select class="form-control" name="gender_preference">
+                <option>ANY</option><option>MALE</option><option>FEMALE</option>
+              </select>
+            </div>
+
+            <div class="col-md-4 form-group">
+              <label>Age</label>
+              <input type="number" class="form-control" name="age">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 form-group">
+              <label>Monthly Gross Salary (₹)</label>
+              <input class="form-control" name="monthly_gross_salary">
+            </div>
+
+            <div class="col-md-6 form-group">
+              <label>Number of Positions</label>
+              <select class="form-control" name="number_of_positions">
+                {% for i in range(1, 11) %}
+                <option>{{ i }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Additional Notes</label>
+            <textarea class="form-control" name="additional_note" rows="2"></textarea>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-paper-plane mr-1"></i> Submit Request
+            </button>
+            <button type="button" class="btn btn-outline-secondary ml-2" onclick="toggleForm()">
+              Cancel
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ── FLASH MESSAGES ── -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+      </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+
+  <!-- ── WORKFLOW TABLE ── -->
+  <div class="card">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+      <span><i class="fas fa-tasks mr-2"></i>Recruitment Workflow Tasks</span>
+      <small class="text-secondary">Showing tasks visible to your role</small>
+    </div>
+
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover mb-0">
+          <thead>
+            <tr>
+              <th style="width:50px">ID</th>
+              <th>Designation</th>
+              <th style="width:80px">Stage</th>
+              <th>Next Step</th>
+              <th>Deadline</th>
+              <th style="width:80px">Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+          {% if tasks %}
+            {% for t in tasks %}
+            <tr>
+
+              <!-- ID -->
+              <td><strong>#{{ t.id }}</strong></td>
+
+              <!-- Designation -->
+              <td>
+                {{ t.job_designation }}
+                {% if t.number_of_positions and t.number_of_positions > 1 %}
+                <span class="badge badge-secondary ml-1">×{{ t.number_of_positions }}</span>
+                {% endif %}
+              </td>
+
+              <!-- Stage -->
+              <td class="text-center">
+                <span class="stage-badge">{{ t.workflow_stage }}</span>
+              </td>
+
+              <!-- Next Step description -->
+              <td>
+                {% set h = help_data.get(t.workflow_stage) %}
+                {% if h %}
+                <div class="next-step-label">
+                  <strong>{{ h.who }}</strong><br>
+                  {{ h.how }}<br>
+                  <i class="fas fa-clock text-muted" style="font-size:0.75rem"></i>
+                  <span style="font-size:0.75rem;color:#64748b">{{ h.time }}</span>
+                </div>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Deadline -->
+              <td style="white-space:nowrap;font-size:0.82rem">
+                {% if t.deadline_at %}
+                  {{ t.deadline_at.strftime('%d %b %Y, %H:%M') if t.deadline_at is not string else t.deadline_at }}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Status badge -->
+              <td class="text-center">
+                {% if t.deadline_at and t.deadline_at < now %}
+                  <span class="badge-deadline-miss"><i class="fas fa-exclamation-triangle mr-1"></i>Overdue</span>
+                {% else %}
+                  <span class="badge-deadline-ok"><i class="fas fa-check-circle mr-1"></i>On Time</span>
+                {% endif %}
+              </td>
+
+              <!-- Action buttons: role-gated -->
+              <td>
+                <div class="action-group">
+
+                  {# ── P1: HR Manager — Is recruitment approved from management? ── #}
+                  {% if t.workflow_stage == "P1" and is_hr_manager %}
+                  <button class="btn btn-primary btn-sm" onclick="openApprovalForm({{ t.id }})">
+                    <i class="fas fa-clipboard-check mr-1"></i>Review Approval
+                  </button>
+                  {% endif %}
+
+                  {# ── P2: HR Executive — Is post for Group-D? ── #}
+                  {% if t.workflow_stage == "P2" %}
+                    {% set p = powers.get("P2") %}
+                    {% if p and emp_code in ["AR000003"] %}
+                    <button class="btn btn-warning btn-sm text-dark" onclick="openGroupDModal({{ t.id }})">
+                      <i class="fas fa-layer-group mr-1"></i>Is Post Group-D?
+                    </button>
+                    {% endif %}
+                  {% endif %}
+
+                  {# ── P3: HR Executive — Confirm JD with HOD & share with consultant ── #}
+                  {# ── P4: HR Executive — Receive CVs ── #}
+                  {# ── P5: HR Executive — Send CVs to HOD ── #}
+                  {# ── P7: HR Executive — Schedule interview & intimate HOD ── #}
+                  {% if t.workflow_stage in ["P3","P4","P5","P7"] %}
+                    {% set p = powers.get(t.workflow_stage) %}
+                    {% if p and p.role == "HR_EXECUTIVE" %}
+                    <button class="btn btn-primary btn-sm" onclick="openWorkflowModal({{ t.id }})">
+                      <i class="fas fa-arrow-right mr-1"></i>
+                      {% if t.workflow_stage == "P3" %}Confirm JD & Share
+                      {% elif t.workflow_stage == "P4" %}Receive CVs
+                      {% elif t.workflow_stage == "P5" %}Send CVs to HOD
+                      {% elif t.workflow_stage == "P7" %}Schedule Interview
+                      {% endif %}
+                    </button>
+                    {% endif %}
+                  {% endif %}
+
+                  {# ── P6: HOD — Shortlist / Reject CVs & forward to HR ── #}
+                  {% if t.workflow_stage == "P6" and is_hod %}
+                  <button class="btn btn-success btn-sm" onclick="openWorkflowModal({{ t.id }}, 'Shortlist CVs')">
+                    <i class="fas fa-filter mr-1"></i>Shortlist / Reject CVs
+                  </button>
+                  {% endif %}
+
+                  {# ── P8: HOD — Is candidate selected after interview? ── #}
+                  {% if t.workflow_stage == "P8" and is_hod %}
+                  <button class="btn btn-success btn-sm" onclick="openCandidateDecision({{ t.id }})">
+                    <i class="fas fa-user-check mr-1"></i>Candidate Selected?
+                  </button>
+                  {% endif %}
+
+                  {# ── P9: HR Manager — Confirm candidate & issue LOI ── #}
+                  {% if t.workflow_stage == "P9" and is_hr_manager %}
+                  <button class="btn btn-primary btn-sm" onclick="openLOIModal({{ t.id }})">
+                    <i class="fas fa-file-signature mr-1"></i>Confirm & Issue LOI
+                  </button>
+                  {% endif %}
+
+                  {# ── P10: HR Executive — Share details to IT for resource allocation ── #}
+                  {% if t.workflow_stage == "P10" %}
+                    {% set p = powers.get("P10") %}
+                    {% if p and p.role == "HR_EXECUTIVE" %}
+                    <button class="btn btn-info btn-sm text-white" onclick="openLOIModal({{ t.id }})">
+                      <i class="fas fa-paper-plane mr-1"></i>Share to IT
+                    </button>
+                    {% endif %}
+                  {% endif %}
+
+                  {# ── P11: Site HR — Receive CVs from HOD / Ref ── #}
+                  {% if t.workflow_stage == "P11" %}
+                    {% set p = powers.get("P11") %}
+                    {% if p and p.role == "SITE_HR" %}
+                    <button class="btn btn-primary btn-sm" onclick="openSiteHRModal({{ t.id }})">
+                      <i class="fas fa-file-import mr-1"></i>Receive CVs
+                    </button>
+                    {% endif %}
+                  {% endif %}
+
+                  {# ── P12: Site HR — Schedule interview & intimate HOD ── #}
+                  {% if t.workflow_stage == "P12" %}
+                    {% set p = powers.get("P12") %}
+                    {% if p and p.role == "SITE_HR" %}
+                    <button class="btn btn-info btn-sm text-white" onclick="openSiteHRModal({{ t.id }})">
+                      <i class="fas fa-calendar-alt mr-1"></i>Schedule Interview
+                    </button>
+                    {% endif %}
+                  {% endif %}
+
+                  {# ── P13: HOD — Confirmation of candidate for final selection ── #}
+                  {% if t.workflow_stage == "P13" and is_hod %}
+                  <button class="btn btn-success btn-sm" onclick="openHODFinalModal({{ t.id }})">
+                    <i class="fas fa-user-tie mr-1"></i>Final Candidate Selection
+                  </button>
+                  {% endif %}
+
+                  {# ── P14: Site HR — Confirm salary as per bracket & signature to PM ── #}
+                  {% if t.workflow_stage == "P14" %}
+                    {% set p = powers.get("P14") %}
+                    {% if p and p.role == "SITE_HR" %}
+                    <button class="btn btn-success btn-sm" onclick="openSalaryModal({{ t.id }})">
+                      <i class="fas fa-rupee-sign mr-1"></i>Confirm Salary & Sign
+                    </button>
+                    {% endif %}
+                  {% endif %}
+
+                  {# ── HR Manager can ALWAYS cancel ── #}
+                  {% if is_hr_manager %}
+                  <button class="btn btn-danger btn-sm" onclick="cancelTask({{ t.id }})">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                  </button>
+                  {% endif %}
+
+                </div>
+              </td>
+
+            </tr>
+            {% endfor %}
+
+          {% else %}
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">
+                <i class="fas fa-inbox d-block"></i>
+                No active recruitment tasks assigned to your role.
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-content -->
+
+
+<!-- ══════════════════════════════════
+     MODALS
+══════════════════════════════════ -->
+
+<!-- HR Manager Approval Modal (P1) -->
+<div class="modal fade" id="approvalModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-check-circle mr-2"></i>HR Manager Approval (P1)</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="approvalForm" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label>Is Recruitment Approved? <span class="text-danger">*</span></label>
+            <select class="form-control" name="decision" id="approvalDecision"
+                    onchange="toggleApprovalBtn(this.value)" required>
+              <option value="">— Select Decision —</option>
+              <option value="YES">Yes → Proceed to HR Executive (P2)</option>
+              <option value="NO">No → Close Request</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Remarks <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="remarks" rows="3" required
+                      placeholder="Enter remarks..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Attachment</label>
+            <input type="file" class="form-control-file" name="attachment">
+          </div>
+          <button type="submit" id="approvalSubmitBtn" class="btn btn-success btn-block">
+            <i class="fas fa-check mr-1"></i> Submit Decision
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Group D Check Modal (P2) -->
+<div class="modal fade" id="groupDModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-layer-group mr-2"></i>Group D Check</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="groupDForm" method="POST">
+          <div class="form-group">
+            <label>Is this a Group-D requirement? <span class="text-danger">*</span></label>
+            <select class="form-control" name="groupd_decision" required>
+              <option value="">— Select —</option>
+              <option value="YES">Yes → Route to Site HR (P11)</option>
+              <option value="NO">No → Proceed to CV Collection (P4)</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-warning btn-block text-dark">
+            <i class="fas fa-arrow-right mr-1"></i> Submit Decision
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- General Workflow Approval Modal (P3,P4,P5,P6,P7,P10) -->
+<div class="modal fade" id="workflowModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="workflowModalTitle"><i class="fas fa-forward mr-2"></i>Stage Approval</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="workflowForm" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label>Remarks <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="remarks" rows="3" required
+                      placeholder="Enter remarks..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Attachment</label>
+            <input type="file" class="form-control-file" name="attachment">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">
+            <i class="fas fa-arrow-right mr-1"></i> Approve & Move Forward
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Candidate Decision Modal (P8) -->
+<div class="modal fade" id="candidateModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-user-check mr-2"></i>Candidate Decision</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="candidateForm" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label>Candidate Selected? <span class="text-danger">*</span></label>
+            <select class="form-control" name="decision" required>
+              <option value="">— Select —</option>
+              <option value="YES">Yes → Proceed to LOI (P9)</option>
+              <option value="NO">No → Back to CV Collection (P4)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Remarks <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="remarks" rows="3" required
+                      placeholder="Interview assessment remarks..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Attachment (Assessment Sheet)</label>
+            <input type="file" class="form-control-file" name="attachment">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">
+            <i class="fas fa-paper-plane mr-1"></i> Submit Decision
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOI Process Modal (P9 HR Manager / P10 HR Executive) -->
+<div class="modal fade" id="loiModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-file-signature mr-2"></i>LOI Process</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="loiForm" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label>Remarks <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="remarks" rows="3" required
+                      placeholder="LOI remarks / document verification notes..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Attachment (LOI Document)</label>
+            <input type="file" class="form-control-file" name="attachment">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">
+            <i class="fas fa-check mr-1"></i> Approve & Continue
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Site HR Approval Modal (P11, P12) -->
+<div class="modal fade" id="siteHRModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-building mr-2"></i>Site HR Action</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="siteHRForm" method="POST">
+          <div class="form-group">
+            <label>Remarks <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="remarks" rows="3" required
+                      placeholder="Site HR remarks..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">
+            <i class="fas fa-arrow-right mr-1"></i> Submit & Move Forward
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HOD Final Approval Modal (P13) -->
+<div class="modal fade" id="hodFinalModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-stamp mr-2"></i>HOD Final Approval</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="hodFinalForm" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label>Remarks <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="remarks" rows="3" required
+                      placeholder="Final selection remarks..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Attachment (Assessment with Salary)</label>
+            <input type="file" class="form-control-file" name="attachment">
+          </div>
+          <button type="submit" class="btn btn-success btn-block">
+            <i class="fas fa-check-double mr-1"></i> Confirm Final Approval
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Salary Confirmation Modal (P14) -->
+<div class="modal fade" id="salaryModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-rupee-sign mr-2"></i>Salary Confirmation</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="salaryForm" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label>Remarks <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="remarks" rows="3" required
+                      placeholder="Salary confirmation remarks..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Attachment</label>
+            <input type="file" class="form-control-file" name="attachment">
+          </div>
+          <button type="submit" class="btn btn-success btn-block">
+            <i class="fas fa-lock mr-1"></i> Confirm & Close
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     SCRIPTS
+══════════════════════════════════ -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+/* ── Form toggle ── */
+function toggleForm() {
+  var f = document.getElementById("recruitmentForm");
+  f.style.display = (f.style.display === "none" || f.style.display === "") ? "block" : "none";
+  if (f.style.display === "block") f.scrollIntoView({ behavior: "smooth" });
+}
+
+/* ── Replacement field show/hide ── */
+function toggleReplacement(val) {
+  document.getElementById("replacementBox").style.display = (val === "REPLACEMENT") ? "block" : "none";
+}
+
+/* ── Load locations by project ── */
+function loadLocations() {
+  var projectId = document.getElementById("projectSelect").value;
+  if (!projectId) return;
+  fetch("/locations/" + projectId)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var sel = document.getElementById("locationSelect");
+      sel.innerHTML = "";
+      data.forEach(function(loc) {
+        var opt = document.createElement("option");
+        opt.value = loc.id;
+        opt.text = loc.location_name;
+        sel.appendChild(opt);
+      });
+    });
+}
+
+/* ── Cancel task (HR Manager only) ── */
+function cancelTask(id) {
+  if (!confirm("Are you sure you want to CANCEL Recruitment #" + id + "? This cannot be undone.")) return;
+  fetch("/recruitment/" + id + "/cancel", { method: "POST" })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.message) {
+        alert(data.message);
+        location.reload();
+      } else if (data.error) {
+        alert("Error: " + data.error);
+      }
+    })
+    .catch(function() { alert("Request failed."); });
+}
+
+/* ── Modal openers ── */
+function toggleApprovalBtn(val) {
+  var btn = document.getElementById("approvalSubmitBtn");
+  if (val === "NO") {
+    btn.className = "btn btn-danger btn-block";
+    btn.innerHTML = '<i class="fas fa-times mr-1"></i> Reject & Close';
+  } else {
+    btn.className = "btn btn-success btn-block";
+    btn.innerHTML = '<i class="fas fa-check mr-1"></i> Submit Decision';
+  }
+}
+
+function openApprovalForm(id) {
+  document.getElementById("approvalForm").action = "/recruitment/" + id + "/approve";
+  $("#approvalModal").modal("show");
+}
+
+function openGroupDModal(id) {
+  document.getElementById("groupDForm").action = "/recruitment/" + id + "/groupd";
+  $("#groupDModal").modal("show");
+}
+
+function openWorkflowModal(id, title) {
+  document.getElementById("workflowForm").action = "/recruitment/" + id + "/stage_approve";
+  if (title) document.getElementById("workflowModalTitle").innerHTML =
+    '<i class="fas fa-forward mr-2"></i>' + title;
+  $("#workflowModal").modal("show");
+}
+
+function openCandidateDecision(id) {
+  document.getElementById("candidateForm").action = "/recruitment/" + id + "/candidate_decision";
+  $("#candidateModal").modal("show");
+}
+
+function openLOIModal(id) {
+  document.getElementById("loiForm").action = "/recruitment/" + id + "/loi_process";
+  $("#loiModal").modal("show");
+}
+
+function openSiteHRModal(id) {
+  document.getElementById("siteHRForm").action = "/recruitment/" + id + "/sitehr_approve";
+  $("#siteHRModal").modal("show");
+}
+
+function openHODFinalModal(id) {
+  document.getElementById("hodFinalForm").action = "/recruitment/" + id + "/hod_final_approve";
+  $("#hodFinalModal").modal("show");
+}
+
+function openSalaryModal(id) {
+  document.getElementById("salaryForm").action = "/recruitment/" + id + "/salary_confirm";
+  $("#salaryModal").modal("show");
+}
+</script>
+
+</body>
+</html>

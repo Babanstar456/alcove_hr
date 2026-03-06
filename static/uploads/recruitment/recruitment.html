@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<title>HR Recruitment</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="icon" href="{{ url_for('static', filename='images/Logo.png') }}">
+
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+
+<style>
+
+:root{
+--sidebar:#0f172a;
+--primary:#0ea5e9;
+--bg:#e3f1f5;
+}
+
+body{
+background:var(--bg);
+font-family:system-ui;
+}
+
+.wrapper{
+display:flex;
+min-height:100vh;
+}
+
+#sidebar{
+width:240px;
+background:var(--sidebar);
+color:white;
+position:fixed;
+height:100vh;
+}
+
+#content{
+margin-left:240px;
+padding:20px;
+width:calc(100% - 240px);
+}
+
+.card{
+border-radius:10px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="wrapper">
+
+<!-- SIDEBAR -->
+
+<nav id="sidebar">
+
+<div class="p-3 text-center">
+
+<img class="rounded-circle"
+width="100"
+src="{{ url_for('static', filename=photo) if photo else url_for('static', filename='images/placeholder-user.png') }}">
+
+<h6 class="mt-2">{{ person_Accountable }}</h6>
+<small>Emp ID: {{ emp_code }}</small>
+
+</div>
+
+<ul class="list-unstyled p-3">
+
+<li>
+<a class="nav-link text-white" href="{{ url_for('dashboard') }}">
+<i class="fas fa-home"></i> Dashboard
+</a>
+</li>
+
+<li>
+<a class="nav-link text-white active" href="{{ url_for('recruitment_panel') }}">
+<i class="fas fa-users"></i> HR Recruitment
+</a>
+</li>
+
+</ul>
+
+</nav>
+
+
+<!-- CONTENT -->
+
+<div id="content">
+
+<h4>HR Recruitment Workflow</h4>
+
+<!-- CREATE BUTTON -->
+
+{% if can_create %}
+
+<button class="btn btn-primary mb-3"
+onclick="toggleForm()">
+
+<i class="fas fa-plus"></i>
+Create Recruitment Request
+
+</button>
+
+{% endif %}
+
+
+<!-- FORM -->
+
+<div id="recruitmentForm" style="display:none">
+
+<div class="card mb-4">
+
+<div class="card-header bg-primary text-white">
+Recruitment Request Form
+</div>
+
+<div class="card-body">
+
+<form method="POST"
+action="/recruitment/create"
+enctype="multipart/form-data">
+
+
+<div class="row">
+
+<div class="col-md-6">
+<label>Project</label>
+<select class="form-control"
+name="project_id"
+id="projectSelect"
+onchange="loadLocations()"
+required>
+
+{% for p in projects %}
+
+<option value="{{p.id}}">
+{{p.project_name}}
+</option>
+
+{% endfor %}
+
+</select>
+</div>
+
+
+<div class="col-md-6">
+<label>Job Designation</label>
+<input class="form-control" name="job_designation" required>
+</div>
+
+</div>
+
+
+<div class="mt-3">
+
+<label>Job Responsibilities</label>
+
+<textarea
+class="form-control"
+rows="4"
+name="job_responsibilities"
+required></textarea>
+
+</div>
+
+
+<div class="mt-3">
+
+<label>Attachment</label>
+
+<input
+type="file"
+class="form-control"
+name="attachment">
+
+</div>
+
+
+<div class="row mt-3">
+
+<div class="col-md-6">
+
+<label>Location</label>
+
+<select
+class="form-control"
+name="location_id"
+required>
+
+{% for l in locations %}
+
+<option value="{{l.id}}">
+{{l.location_name}}
+</option>
+
+{% endfor %}
+
+</select>
+
+</div>
+
+
+<div class="col-md-6">
+
+<label>Reporting Authority</label>
+
+<select
+class="form-control"
+name="reporting_authority_id"
+required>
+
+{% for e in employees %}
+
+<option value="{{e.Emp_Code}}">
+{{e.Person_Accountable}}
+</option>
+
+{% endfor %}
+
+</select>
+
+</div>
+
+</div>
+
+
+<div class="row mt-3">
+
+<div class="col-md-6">
+
+<label>Position Type</label>
+
+<select
+class="form-control"
+name="position_type"
+onchange="toggleReplacement(this.value)"
+required>
+
+<option value="NEW">New</option>
+<option value="REPLACEMENT">Replacement</option>
+
+</select>
+
+</div>
+
+
+<div class="col-md-6" id="replacementBox">
+
+<label>Replacement Name</label>
+
+<select
+class="form-control"
+name="replacement_employee_id">
+
+{% for e in employees %}
+
+<option value="{{e.Emp_Code}}">
+{{e.Person_Accountable}}
+</option>
+
+{% endfor %}
+
+</select>
+
+</div>
+
+</div>
+
+
+<div class="mt-3">
+
+<label>Educational Qualification</label>
+
+<input
+class="form-control"
+name="educational_qualification"
+required>
+
+</div>
+
+
+<div class="row mt-3">
+
+<div class="col-md-4">
+
+<label>Experience</label>
+
+<select class="form-control" name="experience_required">
+
+<option>Fresher</option>
+<option>1</option>
+<option>2</option>
+<option>3</option>
+<option>5</option>
+<option>7</option>
+<option>10+</option>
+
+</select>
+
+</div>
+
+
+<div class="col-md-4">
+
+<label>Gender</label>
+
+<select class="form-control" name="gender_preference">
+
+<option>ANY</option>
+<option>MALE</option>
+<option>FEMALE</option>
+
+</select>
+
+</div>
+
+
+<div class="col-md-4">
+
+<label>Age</label>
+
+<input
+type="number"
+class="form-control"
+name="age">
+
+</div>
+
+</div>
+
+
+<div class="row mt-3">
+
+<div class="col-md-6">
+
+<label>Monthly Gross Salary</label>
+
+<input
+class="form-control"
+name="monthly_gross_salary">
+
+</div>
+
+
+<div class="col-md-6">
+
+<label>Number of Positions</label>
+
+<select
+class="form-control"
+name="number_of_positions">
+
+{% for i in range(1,11) %}
+
+<option>{{i}}</option>
+
+{% endfor %}
+
+</select>
+
+</div>
+
+</div>
+
+
+<div class="mt-3">
+
+<label>Additional Notes</label>
+
+<textarea
+class="form-control"
+name="additional_note"></textarea>
+
+</div>
+
+
+<button class="btn btn-success mt-3">
+
+Submit Recruitment Request
+
+</button>
+
+</form>
+
+</div>
+
+</div>
+
+</div>
+
+
+
+<!-- WORKFLOW TABLE -->
+
+<div class="card">
+
+<div class="card-header bg-dark text-white">
+
+Recruitment Workflow Tasks
+
+</div>
+
+<div class="card-body">
+
+<table class="table table-bordered">
+
+<thead>
+
+<tr>
+
+<th>ID</th>
+<th>Designation</th>
+<th>Stage</th>
+<th>Next Step</th>
+<th>Action</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for t in tasks %}
+
+<tr>
+
+<td>{{t.id}}</td>
+
+<td>{{t.job_designation}}</td>
+
+<td>{{t.workflow_stage}}</td>
+
+
+<td>
+
+{% if t.workflow_stage == "P0" %}Create Request{% endif %}
+{% if t.workflow_stage == "P1" %}Management Approval{% endif %}
+{% if t.workflow_stage == "P2" %}Check Group D{% endif %}
+{% if t.workflow_stage == "P3" %}Confirm JD{% endif %}
+{% if t.workflow_stage == "P4" %}Receive CV{% endif %}
+{% if t.workflow_stage == "P5" %}Send CV to HOD{% endif %}
+{% if t.workflow_stage == "P6" %}Shortlist CV{% endif %}
+{% if t.workflow_stage == "P7" %}Schedule Interview{% endif %}
+{% if t.workflow_stage == "P8" %}Candidate Selected{% endif %}
+{% if t.workflow_stage == "P9" %}Issue LOI{% endif %}
+{% if t.workflow_stage == "P10" %}Send to IT{% endif %}
+{% if t.workflow_stage == "P11" %}Site HR Receive CV{% endif %}
+{% if t.workflow_stage == "P12" %}Site HR Interview{% endif %}
+{% if t.workflow_stage == "P13" %}Final Selection{% endif %}
+{% if t.workflow_stage == "P14" %}Salary Confirmation{% endif %}
+
+</td>
+
+
+<td>
+
+<button
+class="btn btn-success btn-sm"
+onclick="approveTask({{t.id}})">
+
+Forward
+
+</button>
+
+{% if is_hr_manager %}
+
+<button
+class="btn btn-danger btn-sm"
+onclick="cancelTask({{t.id}})">
+
+Cancel
+
+</button>
+
+{% endif %}
+
+</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+
+
+<script>
+
+function toggleForm(){
+
+let f = document.getElementById("recruitmentForm");
+
+f.style.display = f.style.display === "none" ? "block" : "none";
+
+}
+
+function toggleReplacement(v){
+
+let box = document.getElementById("replacementBox");
+
+if(v==="NEW"){
+
+box.style.display="none";
+
+}else{
+
+box.style.display="block";
+
+}
+
+}
+
+function approveTask(id){
+
+fetch(`/recruitment/${id}/next`,{method:"POST"})
+.then(res=>res.json())
+.then(d=>{
+alert("Stage Updated");
+location.reload();
+})
+
+}
+
+function cancelTask(id){
+
+if(!confirm("Cancel task?")) return;
+
+fetch(`/recruitment/${id}/cancel`,{method:"POST"})
+.then(res=>res.json())
+.then(d=>{
+alert("Task Cancelled");
+location.reload();
+})
+
+}
+
+</script>
+
+</body>
+</html>
