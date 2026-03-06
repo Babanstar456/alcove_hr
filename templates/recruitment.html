@@ -323,6 +323,34 @@ label {
   min-width: 38px;
 }
 
+/* ── PREV STEP PANEL inside modals ── */
+.prev-step-panel {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 0.83rem;
+}
+.prev-step-panel .psp-label {
+  font-weight: 700;
+  color: #0369a1;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.prev-step-panel .psp-remarks {
+  color: #1e293b;
+  margin-bottom: 6px;
+  white-space: pre-wrap;
+}
+.prev-step-panel .psp-attachment a {
+  color: #0284c7;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
 /* ── EMPTY STATE ── */
 .empty-state {
   text-align: center;
@@ -354,11 +382,18 @@ label {
   <div class="brand">
     <img src="{{ url_for('static', filename='images/Logo.png') }}" alt="FMS Logo"
          onerror="this.style.display='none'">
-    <span class="brand-text">FMS-HR <span>Recruitment Annexure</span></span>
+    <span class="brand-text">FMS <span>HR</span></span>
   </div>
 
-
-
+  <!-- Center nav links -->
+  <div class="nav-center">
+    <a href="{{ url_for('dashboard') }}" class="nav-pill">
+      <i class="fas fa-th-large"></i> Dashboard
+    </a>
+    <a href="{{ url_for('fms_hr_recruitment_panel') }}" class="nav-pill active">
+      <i class="fas fa-users"></i> HR Recruitment
+    </a>
+  </div>
 
   <!-- Right: profile + back button -->
   <div class="nav-right">
@@ -437,11 +472,14 @@ label {
           <thead>
             <tr>
               <th style="width:50px">ID</th>
-              <th>Designation</th>
+              <th style="display:none">Designation</th>
               <th style="width:80px">Stage</th>
+              <th>Requested By</th>
               <th>Next Step</th>
               <th>Deadline</th>
               <th style="width:80px">Status</th>
+              <th>Remarks</th>
+              <th>Attachment</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -454,8 +492,8 @@ label {
               <!-- ID -->
               <td><strong>#{{ t.id }}</strong></td>
 
-              <!-- Designation -->
-              <td>
+              <!-- Designation (hidden) -->
+              <td style="display:none">
                 {{ t.job_designation }}
                 {% if t.number_of_positions and t.number_of_positions > 1 %}
                 <span class="badge badge-secondary ml-1">×{{ t.number_of_positions }}</span>
@@ -465,6 +503,17 @@ label {
               <!-- Stage -->
               <td class="text-center">
                 <span class="stage-badge">{{ t.workflow_stage }}</span>
+              </td>
+
+              <!-- Requested By (creator name mapped from emp_code) -->
+              <td style="white-space:nowrap;font-size:0.83rem">
+                {% if t.created_by %}
+                  <i class="fas fa-user-circle text-primary mr-1"></i>
+                  {{ emp_name_map.get(t.created_by, t.created_by) }}
+                  <div style="font-size:0.73rem;color:#94a3b8">{{ t.created_by }}</div>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
               </td>
 
               <!-- Next Step description -->
@@ -485,7 +534,7 @@ label {
               <!-- Deadline -->
               <td style="white-space:nowrap;font-size:0.82rem">
                 {% if t.deadline_at %}
-                  {{ t.deadline_at.strftime('%d %b %Y, %H:%M') if t.deadline_at is not string else t.deadline_at }}
+                  {{ t.deadline_at.strftime('%d/%m/%Y %H:%M') if t.deadline_at is not string else t.deadline_at }}
                 {% else %}
                   <span class="text-muted">—</span>
                 {% endif %}
@@ -493,124 +542,238 @@ label {
 
               <!-- Status badge -->
               <td class="text-center">
-                {% if t.deadline_at and t.deadline_at < now %}
-                  <span class="badge-deadline-miss"><i class="fas fa-exclamation-triangle mr-1"></i>Overdue</span>
+                {% if t.status == 'CLOSED' or t.workflow_stage == 'P14' %}
+                  <span class="badge-deadline-ok"><i class="fas fa-check-circle mr-1"></i>Complete</span>
                 {% else %}
-                  <span class="badge-deadline-ok"><i class="fas fa-check-circle mr-1"></i>On Time</span>
+                  <span class="badge-deadline-miss"><i class="fas fa-clock mr-1"></i>Pending</span>
+                {% endif %}
+              </td>
+
+              <!-- Remarks (inline, latest available remarks) -->
+              <td style="max-width:200px;font-size:0.82rem">
+                {% set latest_remarks =
+                    t.workflow_remarks or
+                    t.hr_manager_remarks or
+                    t.candidate_decision_remarks or
+                    t.loi_process_remarks or
+                    t.site_hr_remarks or
+                    t.hod_final_remarks or
+                    t.salary_confirmation_remarks or '' %}
+                {% if latest_remarks %}
+                  <span style="white-space:pre-wrap;color:#1e293b">{{ latest_remarks }}</span>
+                {% else %}
+                  <span class="text-muted">No remarks yet</span>
+                {% endif %}
+              </td>
+
+              <!-- Attachment (inline link) -->
+              <td style="font-size:0.82rem;white-space:nowrap">
+                {% set latest_attach =
+                    t.workflow_attachment or
+                    t.attachment_path or
+                    t.candidate_decision_attachment or
+                    t.loi_process_attachment or
+                    t.hod_final_attachment or
+                    t.salary_confirmation_attachment or '' %}
+                {% if latest_attach %}
+                  {% set ext = latest_attach.rsplit('.', 1)[-1].lower() %}
+                  {% if ext == 'pdf' %}
+                    <a href="/static/{{ latest_attach }}" target="_blank"
+                       style="color:#dc2626;font-weight:600">
+                      <i class="fas fa-file-pdf mr-1"></i>View
+                    </a>
+                  {% elif ext in ['xls', 'xlsx'] %}
+                    <a href="/static/{{ latest_attach }}" download
+                       style="color:#16a34a;font-weight:600">
+                      <i class="fas fa-file-excel mr-1"></i>Download
+                    </a>
+                  {% else %}
+                    <a href="/static/{{ latest_attach }}" target="_blank" download
+                       style="color:#0284c7;font-weight:600">
+                      <i class="fas fa-paperclip mr-1"></i>Download
+                    </a>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">—</span>
                 {% endif %}
               </td>
 
               <!-- Action buttons: role-gated -->
               <td>
+                {% set has_action = namespace(value=false) %}
                 <div class="action-group">
 
-                  {# ── P1: HR Manager — Is recruitment approved from management? ── #}
-                  {% if t.workflow_stage == "P1" and is_hr_manager %}
-                  <button class="btn btn-primary btn-sm" onclick="openApprovalForm({{ t.id }})">
+                  {# ── P1: HR Manager / Admin — Is recruitment approved from management? ── #}
+                  {% if t.workflow_stage == "P1" and (is_hr_manager or is_admin) %}
+                  {% set has_action.value = true %}
+                  <button class="btn btn-primary btn-sm act-btn"
+                    data-modal="approvalModal"
+                    data-form="approvalForm"
+                    data-url="/recruitment/{{ t.id }}/approve"
+                    data-prev-remarks="{{ ('Original request: ' + t.job_designation + ' | ' + t.position_type)|e }}"
+                    data-prev-attach="{{ ('static/' + t.attachment_path)|e if t.attachment_path else '' }}"
+                    data-panel="approvalPrevPanel"
+                    data-panel-remarks="approvalPrevRemarks"
+                    data-panel-attach="approvalPrevAttachment">
                     <i class="fas fa-clipboard-check mr-1"></i>Review Approval
                   </button>
                   {% endif %}
 
-                  {# ── P2: HR Executive — Is post for Group-D? ── #}
-                  {% if t.workflow_stage == "P2" %}
-                    {% set p = powers.get("P2") %}
-                    {% if p and emp_code in ["AR000003"] %}
-                    <button class="btn btn-warning btn-sm text-dark" onclick="openGroupDModal({{ t.id }})">
-                      <i class="fas fa-layer-group mr-1"></i>Is Post Group-D?
-                    </button>
-                    {% endif %}
+                  {# ── P2: HR Executive / Admin — Is post for Group-D? ── #}
+                  {% if t.workflow_stage == "P2" and (is_hr_executive or is_admin) %}
+                  {% set has_action.value = true %}
+                  <button class="btn btn-warning btn-sm text-dark act-btn"
+                    data-modal="groupDModal"
+                    data-form="groupDForm"
+                    data-url="/recruitment/{{ t.id }}/groupd"
+                    data-prev-remarks="{{ t.hr_manager_remarks|e if t.hr_manager_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' + t.attachment_path)|e if t.attachment_path else '' }}"
+                    data-panel="groupDPrevPanel"
+                    data-panel-remarks="groupDPrevRemarks"
+                    data-panel-attach="groupDPrevAttachment">
+                    <i class="fas fa-layer-group mr-1"></i>Is Post Group-D?
+                  </button>
                   {% endif %}
 
-                  {# ── P3: HR Executive — Confirm JD with HOD & share with consultant ── #}
-                  {# ── P4: HR Executive — Receive CVs ── #}
-                  {# ── P5: HR Executive — Send CVs to HOD ── #}
-                  {# ── P7: HR Executive — Schedule interview & intimate HOD ── #}
-                  {% if t.workflow_stage in ["P3","P4","P5","P7"] %}
-                    {% set p = powers.get(t.workflow_stage) %}
-                    {% if p and p.role == "HR_EXECUTIVE" %}
-                    <button class="btn btn-primary btn-sm" onclick="openWorkflowModal({{ t.id }})">
-                      <i class="fas fa-arrow-right mr-1"></i>
-                      {% if t.workflow_stage == "P3" %}Confirm JD & Share
-                      {% elif t.workflow_stage == "P4" %}Receive CVs
-                      {% elif t.workflow_stage == "P5" %}Send CVs to HOD
-                      {% elif t.workflow_stage == "P7" %}Schedule Interview
-                      {% endif %}
-                    </button>
+                  {# ── P3/P4/P5/P7: HR Executive / Admin ── #}
+                  {% if t.workflow_stage in ["P3","P4","P5","P7"] and (is_hr_executive or is_admin) %}
+                  {% set has_action.value = true %}
+                  <button class="btn btn-primary btn-sm act-wf-btn"
+                    data-url="/recruitment/{{ t.id }}/stage_approve"
+                    data-title="{{ t.workflow_stage }} — {% if t.workflow_stage == 'P3' %}Confirm JD &amp; Share{% elif t.workflow_stage == 'P4' %}Receive CVs{% elif t.workflow_stage == 'P5' %}Send CVs to HOD{% elif t.workflow_stage == 'P7' %}Schedule Interview{% endif %}"
+                    data-prev-remarks="{{ t.workflow_remarks|e if t.workflow_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' + t.workflow_attachment)|e if t.workflow_attachment else '' }}">
+                    <i class="fas fa-arrow-right mr-1"></i>
+                    {% if t.workflow_stage == "P3" %}Confirm JD & Share
+                    {% elif t.workflow_stage == "P4" %}Receive CVs
+                    {% elif t.workflow_stage == "P5" %}Send CVs to HOD
+                    {% elif t.workflow_stage == "P7" %}Schedule Interview
                     {% endif %}
+                  </button>
                   {% endif %}
 
-                  {# ── P6: HOD — Shortlist / Reject CVs & forward to HR ── #}
-                  {% if t.workflow_stage == "P6" and is_hod %}
-                  <button class="btn btn-success btn-sm" onclick="openWorkflowModal({{ t.id }}, 'Shortlist CVs')">
+                  {# ── P6: HOD / Admin — Shortlist / Reject CVs ── #}
+                  {% if t.workflow_stage == "P6" and (t.created_by == emp_code or is_admin) %}
+                  {% set has_action.value = true %}
+                  <button class="btn btn-success btn-sm act-wf-btn"
+                    data-url="/recruitment/{{ t.id }}/stage_approve"
+                    data-title="P6 — Shortlist / Reject CVs"
+                    data-prev-remarks="{{ t.workflow_remarks|e if t.workflow_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' + t.workflow_attachment)|e if t.workflow_attachment else '' }}">
                     <i class="fas fa-filter mr-1"></i>Shortlist / Reject CVs
                   </button>
                   {% endif %}
 
-                  {# ── P8: HOD — Is candidate selected after interview? ── #}
-                  {% if t.workflow_stage == "P8" and is_hod %}
-                  <button class="btn btn-success btn-sm" onclick="openCandidateDecision({{ t.id }})">
+                  {# ── P8: HOD / Admin — Candidate selected after interview? ── #}
+                  {% if t.workflow_stage == "P8" and (t.created_by == emp_code or is_admin) %}
+                  {% set has_action.value = true %}
+                  <button class="btn btn-success btn-sm act-btn"
+                    data-modal="candidateModal"
+                    data-form="candidateForm"
+                    data-url="/recruitment/{{ t.id }}/candidate_decision"
+                    data-prev-remarks="{{ t.workflow_remarks|e if t.workflow_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' + t.workflow_attachment)|e if t.workflow_attachment else '' }}"
+                    data-panel="candidatePrevPanel"
+                    data-panel-remarks="candidatePrevRemarks"
+                    data-panel-attach="candidatePrevAttachment">
                     <i class="fas fa-user-check mr-1"></i>Candidate Selected?
                   </button>
                   {% endif %}
 
-                  {# ── P9: HR Manager — Confirm candidate & issue LOI ── #}
-                  {% if t.workflow_stage == "P9" and is_hr_manager %}
-                  <button class="btn btn-primary btn-sm" onclick="openLOIModal({{ t.id }})">
+                  {# ── P9: HR Manager / Admin — Issue LOI ── #}
+                  {% if t.workflow_stage == "P9" and (is_hr_manager or is_admin) %}
+                  {% set has_action.value = true %}
+                  <button class="btn btn-primary btn-sm act-loi-btn"
+                    data-url="/recruitment/{{ t.id }}/loi_process"
+                    data-stage="P9"
+                    data-prev-remarks="{{ t.candidate_decision_remarks|e if t.candidate_decision_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' + t.candidate_decision_attachment)|e if t.candidate_decision_attachment else '' }}">
                     <i class="fas fa-file-signature mr-1"></i>Confirm & Issue LOI
                   </button>
                   {% endif %}
 
-                  {# ── P10: HR Executive — Share details to IT for resource allocation ── #}
-                  {% if t.workflow_stage == "P10" %}
-                    {% set p = powers.get("P10") %}
-                    {% if p and p.role == "HR_EXECUTIVE" %}
-                    <button class="btn btn-info btn-sm text-white" onclick="openLOIModal({{ t.id }})">
-                      <i class="fas fa-paper-plane mr-1"></i>Share to IT
-                    </button>
-                    {% endif %}
+                  {# ── P10: HR Executive / Admin — Share details to IT & Complete ── #}
+                  {% if t.workflow_stage == "P10" and (is_hr_executive or is_admin) %}
+                  {% set has_action.value = true %}
+                  <button class="btn btn-success btn-sm text-white act-loi-btn"
+                    data-url="/recruitment/{{ t.id }}/loi_process"
+                    data-stage="P10"
+                    data-prev-remarks="{{ t.loi_process_remarks|e if t.loi_process_remarks else '' }}"
+                    data-prev-attach="{{ ('static/' + t.loi_process_attachment)|e if t.loi_process_attachment else '' }}">
+                    <i class="fas fa-flag-checkered mr-1"></i>Share to IT & Complete
+                  </button>
                   {% endif %}
 
-                  {# ── P11: Site HR — Receive CVs from HOD / Ref ── #}
+                  {# ── P11: Site HR / Admin — Receive CVs ── #}
                   {% if t.workflow_stage == "P11" %}
                     {% set p = powers.get("P11") %}
-                    {% if p and p.role == "SITE_HR" %}
-                    <button class="btn btn-primary btn-sm" onclick="openSiteHRModal({{ t.id }})">
+                    {% if p and (p.role == "SITE_HR" or is_admin) %}
+                    {% set has_action.value = true %}
+                    <button class="btn btn-primary btn-sm act-sitehr-btn"
+                      data-url="/recruitment/{{ t.id }}/sitehr_approve"
+                      data-stage="P11"
+                      data-prev-remarks="{{ t.loi_process_remarks|e if t.loi_process_remarks else '' }}"
+                      data-prev-attach="{{ ('static/' + t.loi_process_attachment)|e if t.loi_process_attachment else '' }}">
                       <i class="fas fa-file-import mr-1"></i>Receive CVs
                     </button>
                     {% endif %}
                   {% endif %}
 
-                  {# ── P12: Site HR — Schedule interview & intimate HOD ── #}
+                  {# ── P12: Site HR / Admin — Schedule interview ── #}
                   {% if t.workflow_stage == "P12" %}
                     {% set p = powers.get("P12") %}
-                    {% if p and p.role == "SITE_HR" %}
-                    <button class="btn btn-info btn-sm text-white" onclick="openSiteHRModal({{ t.id }})">
+                    {% if p and (p.role == "SITE_HR" or is_admin) %}
+                    {% set has_action.value = true %}
+                    <button class="btn btn-info btn-sm text-white act-sitehr-btn"
+                      data-url="/recruitment/{{ t.id }}/sitehr_approve"
+                      data-stage="P12"
+                      data-prev-remarks="{{ t.site_hr_remarks|e if t.site_hr_remarks else '' }}"
+                      data-prev-attach="">
                       <i class="fas fa-calendar-alt mr-1"></i>Schedule Interview
                     </button>
                     {% endif %}
                   {% endif %}
 
-                  {# ── P13: HOD — Confirmation of candidate for final selection ── #}
-                  {% if t.workflow_stage == "P13" and is_hod %}
-                  <button class="btn btn-success btn-sm" onclick="openHODFinalModal({{ t.id }})">
+                  {# ── P13: HOD / Admin — Final candidate selection ── #}
+                  {% if t.workflow_stage == "P13" and (t.created_by == emp_code or is_admin) %}
+                  {% set has_action.value = true %}
+                  <button class="btn btn-success btn-sm act-btn"
+                    data-modal="hodFinalModal"
+                    data-form="hodFinalForm"
+                    data-url="/recruitment/{{ t.id }}/hod_final_approve"
+                    data-prev-remarks="{{ t.site_hr_remarks|e if t.site_hr_remarks else '' }}"
+                    data-prev-attach=""
+                    data-panel="hodFinalPrevPanel"
+                    data-panel-remarks="hodFinalPrevRemarks"
+                    data-panel-attach="hodFinalPrevAttachment">
                     <i class="fas fa-user-tie mr-1"></i>Final Candidate Selection
                   </button>
                   {% endif %}
 
-                  {# ── P14: Site HR — Confirm salary as per bracket & signature to PM ── #}
+                  {# ── P14: Site HR / Admin — Confirm salary & sign ── #}
                   {% if t.workflow_stage == "P14" %}
                     {% set p = powers.get("P14") %}
-                    {% if p and p.role == "SITE_HR" %}
-                    <button class="btn btn-success btn-sm" onclick="openSalaryModal({{ t.id }})">
+                    {% if p and (p.role == "SITE_HR" or is_admin) %}
+                    {% set has_action.value = true %}
+                    <button class="btn btn-success btn-sm act-btn"
+                      data-modal="salaryModal"
+                      data-form="salaryForm"
+                      data-url="/recruitment/{{ t.id }}/salary_confirm"
+                      data-prev-remarks="{{ t.hod_final_remarks|e if t.hod_final_remarks else '' }}"
+                      data-prev-attach="{{ ('static/' + t.hod_final_attachment)|e if t.hod_final_attachment else '' }}"
+                      data-panel="salaryPrevPanel"
+                      data-panel-remarks="salaryPrevRemarks"
+                      data-panel-attach="salaryPrevAttachment">
                       <i class="fas fa-rupee-sign mr-1"></i>Confirm Salary & Sign
                     </button>
                     {% endif %}
                   {% endif %}
 
-                  {# ── HR Manager can ALWAYS cancel ── #}
-                  {% if is_hr_manager %}
-                  <button class="btn btn-danger btn-sm" onclick="cancelTask({{ t.id }})">
-                    <i class="fas fa-times mr-1"></i>Cancel
+                  {# ── HR Manager / Admin — show Cancel only when no other button ── #}
+                  {% if (is_hr_manager or is_admin) and not has_action.value %}
+                  <button class="btn btn-danger btn-sm"
+                    onclick="openCancelModal({{ t.id }}, '{{ t.job_designation|e }}')">
+                    <i class="fas fa-ban mr-1"></i>Cancel
                   </button>
                   {% endif %}
 
@@ -622,7 +785,7 @@ label {
 
           {% else %}
           <tr>
-            <td colspan="7">
+            <td colspan="10">
               <div class="empty-state">
                 <i class="fas fa-inbox d-block"></i>
                 No active recruitment tasks assigned to your role.
@@ -677,7 +840,7 @@ label {
 
           <div class="form-group">
             <label>Attachment</label>
-            <input type="file" class="form-control-file" name="attachment">
+            <input type="file" class="form-control-file" name="attachment" accept=".pdf,.xls,.xlsx">
           </div>
 
           <div class="row">
@@ -781,16 +944,20 @@ label {
 <div class="modal fade" id="approvalModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-check-circle mr-2"></i>HR Manager Approval (P1)</h5>
+      <div class="modal-header" style="background:#0f172a">
+        <h5 class="modal-title text-white"><i class="fas fa-check-circle mr-2 text-info"></i>P1 — Management Approval</h5>
         <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body">
+        <div id="approvalPrevPanel" class="prev-step-panel" style="display:none">
+          <div class="psp-label"><i class="fas fa-file-alt mr-1"></i>Request Details</div>
+          <div class="psp-remarks" id="approvalPrevRemarks"></div>
+          <div class="psp-attachment" id="approvalPrevAttachment"></div>
+        </div>
         <form id="approvalForm" method="POST" enctype="multipart/form-data">
           <div class="form-group">
             <label>Is Recruitment Approved? <span class="text-danger">*</span></label>
-            <select class="form-control" name="decision" id="approvalDecision"
-                    onchange="toggleApprovalBtn(this.value)" required>
+            <select class="form-control" name="decision" id="approvalDecision" required>
               <option value="">— Select Decision —</option>
               <option value="YES">Yes → Proceed to HR Executive (P2)</option>
               <option value="NO">No → Close Request</option>
@@ -799,14 +966,18 @@ label {
           <div class="form-group">
             <label>Remarks <span class="text-danger">*</span></label>
             <textarea class="form-control" name="remarks" rows="3" required
-                      placeholder="Enter remarks..."></textarea>
+                      placeholder="Enter approval/rejection remarks..."></textarea>
           </div>
           <div class="form-group">
-            <label>Attachment</label>
-            <input type="file" class="form-control-file" name="attachment">
+            <label>Attachment <small class="text-muted">(optional)</small></label>
+            <input type="file" class="form-control-file" name="attachment" accept=".pdf,.xls,.xlsx">
           </div>
           <button type="submit" id="approvalSubmitBtn" class="btn btn-success btn-block">
             <i class="fas fa-check mr-1"></i> Submit Decision
+          </button>
+          <hr style="margin:12px 0">
+          <button type="button" class="btn btn-danger btn-block" id="modalCancelBtn">
+            <i class="fas fa-ban mr-1"></i> Cancel This Recruitment Request
           </button>
         </form>
       </div>
@@ -818,22 +989,31 @@ label {
 <div class="modal fade" id="groupDModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-layer-group mr-2"></i>Group D Check</h5>
+      <div class="modal-header" style="background:#0f172a">
+        <h5 class="modal-title text-white"><i class="fas fa-layer-group mr-2 text-warning"></i>P2 — Group D Verification</h5>
         <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body">
+        <div id="groupDPrevPanel" class="prev-step-panel" style="display:none">
+          <div class="psp-label"><i class="fas fa-history mr-1"></i>P1 — HR Manager Decision</div>
+          <div class="psp-remarks" id="groupDPrevRemarks"></div>
+          <div class="psp-attachment" id="groupDPrevAttachment"></div>
+        </div>
         <form id="groupDForm" method="POST">
           <div class="form-group">
             <label>Is this a Group-D requirement? <span class="text-danger">*</span></label>
             <select class="form-control" name="groupd_decision" required>
               <option value="">— Select —</option>
               <option value="YES">Yes → Route to Site HR (P11)</option>
-              <option value="NO">No → Proceed to CV Collection (P4)</option>
+              <option value="NO">No → Confirm JD with HOD (P3)</option>
             </select>
           </div>
-          <button type="submit" class="btn btn-warning btn-block text-dark">
+          <button type="submit" class="btn btn-warning btn-block text-dark font-weight-bold">
             <i class="fas fa-arrow-right mr-1"></i> Submit Decision
+          </button>
+          <hr style="margin:12px 0">
+          <button type="button" class="btn btn-danger btn-block modal-cancel-btn">
+            <i class="fas fa-ban mr-1"></i> Cancel This Recruitment Request
           </button>
         </form>
       </div>
@@ -841,27 +1021,36 @@ label {
   </div>
 </div>
 
-<!-- General Workflow Approval Modal (P3,P4,P5,P6,P7,P10) -->
+<!-- General Workflow Approval Modal (P3,P4,P5,P6,P7) -->
 <div class="modal fade" id="workflowModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="workflowModalTitle"><i class="fas fa-forward mr-2"></i>Stage Approval</h5>
+      <div class="modal-header" style="background:#0f172a">
+        <h5 class="modal-title text-white" id="workflowModalTitle"><i class="fas fa-forward mr-2 text-info"></i>Stage Approval</h5>
         <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body">
+        <div id="workflowPrevPanel" class="prev-step-panel" style="display:none">
+          <div class="psp-label" id="workflowPrevLabel"><i class="fas fa-history mr-1"></i>Previous Step Remarks</div>
+          <div class="psp-remarks" id="workflowPrevRemarks"></div>
+          <div class="psp-attachment" id="workflowPrevAttachment"></div>
+        </div>
         <form id="workflowForm" method="POST" enctype="multipart/form-data">
           <div class="form-group">
             <label>Remarks <span class="text-danger">*</span></label>
             <textarea class="form-control" name="remarks" rows="3" required
-                      placeholder="Enter remarks..."></textarea>
+                      placeholder="Enter remarks for this stage..."></textarea>
           </div>
           <div class="form-group">
-            <label>Attachment</label>
-            <input type="file" class="form-control-file" name="attachment">
+            <label>Attachment <small class="text-muted">(optional)</small></label>
+            <input type="file" class="form-control-file" name="attachment" accept=".pdf,.xls,.xlsx">
           </div>
           <button type="submit" class="btn btn-primary btn-block">
             <i class="fas fa-arrow-right mr-1"></i> Approve & Move Forward
+          </button>
+          <hr style="margin:12px 0">
+          <button type="button" class="btn btn-danger btn-block modal-cancel-btn">
+            <i class="fas fa-ban mr-1"></i> Cancel This Recruitment Request
           </button>
         </form>
       </div>
@@ -873,16 +1062,21 @@ label {
 <div class="modal fade" id="candidateModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-user-check mr-2"></i>Candidate Decision</h5>
+      <div class="modal-header" style="background:#0f172a">
+        <h5 class="modal-title text-white"><i class="fas fa-user-check mr-2 text-success"></i>P8 — Candidate Selection Decision</h5>
         <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body">
+        <div id="candidatePrevPanel" class="prev-step-panel" style="display:none">
+          <div class="psp-label"><i class="fas fa-history mr-1"></i>P7 — Interview Schedule Remarks</div>
+          <div class="psp-remarks" id="candidatePrevRemarks"></div>
+          <div class="psp-attachment" id="candidatePrevAttachment"></div>
+        </div>
         <form id="candidateForm" method="POST" enctype="multipart/form-data">
           <div class="form-group">
-            <label>Candidate Selected? <span class="text-danger">*</span></label>
+            <label>Candidate Selected After Interview? <span class="text-danger">*</span></label>
             <select class="form-control" name="decision" required>
-              <option value="">— Select —</option>
+              <option value="">— Select Decision —</option>
               <option value="YES">Yes → Proceed to LOI (P9)</option>
               <option value="NO">No → Back to CV Collection (P4)</option>
             </select>
@@ -893,11 +1087,15 @@ label {
                       placeholder="Interview assessment remarks..."></textarea>
           </div>
           <div class="form-group">
-            <label>Attachment (Assessment Sheet)</label>
-            <input type="file" class="form-control-file" name="attachment">
+            <label>Attachment <small class="text-muted">(Assessment Sheet)</small></label>
+            <input type="file" class="form-control-file" name="attachment" accept=".pdf,.xls,.xlsx">
           </div>
           <button type="submit" class="btn btn-primary btn-block">
             <i class="fas fa-paper-plane mr-1"></i> Submit Decision
+          </button>
+          <hr style="margin:12px 0">
+          <button type="button" class="btn btn-danger btn-block modal-cancel-btn">
+            <i class="fas fa-ban mr-1"></i> Cancel This Recruitment Request
           </button>
         </form>
       </div>
@@ -905,15 +1103,20 @@ label {
   </div>
 </div>
 
-<!-- LOI Process Modal (P9 HR Manager / P10 HR Executive) -->
+<!-- LOI Process Modal (P9 HR Manager / P10 HR Manager) -->
 <div class="modal fade" id="loiModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-file-signature mr-2"></i>LOI Process</h5>
+      <div class="modal-header" style="background:#0f172a">
+        <h5 class="modal-title text-white" id="loiModalTitle"><i class="fas fa-file-signature mr-2 text-primary"></i>P9 — Confirm Candidate & Issue LOI</h5>
         <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body">
+        <div id="loiPrevPanel" class="prev-step-panel" style="display:none">
+          <div class="psp-label" id="loiPrevLabel"><i class="fas fa-history mr-1"></i>P8 — Candidate Selection Remarks</div>
+          <div class="psp-remarks" id="loiPrevRemarks"></div>
+          <div class="psp-attachment" id="loiPrevAttachment"></div>
+        </div>
         <form id="loiForm" method="POST" enctype="multipart/form-data">
           <div class="form-group">
             <label>Remarks <span class="text-danger">*</span></label>
@@ -921,11 +1124,15 @@ label {
                       placeholder="LOI remarks / document verification notes..."></textarea>
           </div>
           <div class="form-group">
-            <label>Attachment (LOI Document)</label>
-            <input type="file" class="form-control-file" name="attachment">
+            <label>Attachment <small class="text-muted">(LOI Document)</small></label>
+            <input type="file" class="form-control-file" name="attachment" accept=".pdf,.xls,.xlsx">
           </div>
-          <button type="submit" class="btn btn-primary btn-block">
+          <button type="submit" class="btn btn-primary btn-block" id="loiSubmitBtn">
             <i class="fas fa-check mr-1"></i> Approve & Continue
+          </button>
+          <hr style="margin:12px 0">
+          <button type="button" class="btn btn-danger btn-block modal-cancel-btn">
+            <i class="fas fa-ban mr-1"></i> Cancel This Recruitment Request
           </button>
         </form>
       </div>
@@ -937,19 +1144,32 @@ label {
 <div class="modal fade" id="siteHRModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-building mr-2"></i>Site HR Action</h5>
+      <div class="modal-header" style="background:#0f172a">
+        <h5 class="modal-title text-white" id="siteHRModalTitle"><i class="fas fa-building mr-2 text-info"></i>Site HR Action</h5>
         <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body">
-        <form id="siteHRForm" method="POST">
+        <div id="siteHRPrevPanel" class="prev-step-panel" style="display:none">
+          <div class="psp-label" id="siteHRPrevLabel"><i class="fas fa-history mr-1"></i>Previous Step Remarks</div>
+          <div class="psp-remarks" id="siteHRPrevRemarks"></div>
+          <div class="psp-attachment" id="siteHRPrevAttachment"></div>
+        </div>
+        <form id="siteHRForm" method="POST" enctype="multipart/form-data">
           <div class="form-group">
             <label>Remarks <span class="text-danger">*</span></label>
             <textarea class="form-control" name="remarks" rows="3" required
                       placeholder="Site HR remarks..."></textarea>
           </div>
+          <div class="form-group">
+            <label>Attachment <small class="text-muted">(optional)</small></label>
+            <input type="file" class="form-control-file" name="attachment" accept=".pdf,.xls,.xlsx">
+          </div>
           <button type="submit" class="btn btn-primary btn-block">
             <i class="fas fa-arrow-right mr-1"></i> Submit & Move Forward
+          </button>
+          <hr style="margin:12px 0">
+          <button type="button" class="btn btn-danger btn-block modal-cancel-btn">
+            <i class="fas fa-ban mr-1"></i> Cancel This Recruitment Request
           </button>
         </form>
       </div>
@@ -961,11 +1181,16 @@ label {
 <div class="modal fade" id="hodFinalModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-stamp mr-2"></i>HOD Final Approval</h5>
+      <div class="modal-header" style="background:#0f172a">
+        <h5 class="modal-title text-white"><i class="fas fa-stamp mr-2 text-success"></i>P13 — Final Candidate Selection</h5>
         <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body">
+        <div id="hodFinalPrevPanel" class="prev-step-panel" style="display:none">
+          <div class="psp-label"><i class="fas fa-history mr-1"></i>P12 — Site HR Interview Remarks</div>
+          <div class="psp-remarks" id="hodFinalPrevRemarks"></div>
+          <div class="psp-attachment" id="hodFinalPrevAttachment"></div>
+        </div>
         <form id="hodFinalForm" method="POST" enctype="multipart/form-data">
           <div class="form-group">
             <label>Remarks <span class="text-danger">*</span></label>
@@ -973,11 +1198,15 @@ label {
                       placeholder="Final selection remarks..."></textarea>
           </div>
           <div class="form-group">
-            <label>Attachment (Assessment with Salary)</label>
-            <input type="file" class="form-control-file" name="attachment">
+            <label>Attachment <small class="text-muted">(Assessment with Salary)</small></label>
+            <input type="file" class="form-control-file" name="attachment" accept=".pdf,.xls,.xlsx">
           </div>
           <button type="submit" class="btn btn-success btn-block">
             <i class="fas fa-check-double mr-1"></i> Confirm Final Approval
+          </button>
+          <hr style="margin:12px 0">
+          <button type="button" class="btn btn-danger btn-block modal-cancel-btn">
+            <i class="fas fa-ban mr-1"></i> Cancel This Recruitment Request
           </button>
         </form>
       </div>
@@ -989,11 +1218,16 @@ label {
 <div class="modal fade" id="salaryModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-rupee-sign mr-2"></i>Salary Confirmation</h5>
+      <div class="modal-header" style="background:#0f172a">
+        <h5 class="modal-title text-white"><i class="fas fa-rupee-sign mr-2 text-success"></i>P14 — Salary Confirmation & Sign</h5>
         <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body">
+        <div id="salaryPrevPanel" class="prev-step-panel" style="display:none">
+          <div class="psp-label"><i class="fas fa-history mr-1"></i>P13 — HOD Final Selection Remarks</div>
+          <div class="psp-remarks" id="salaryPrevRemarks"></div>
+          <div class="psp-attachment" id="salaryPrevAttachment"></div>
+        </div>
         <form id="salaryForm" method="POST" enctype="multipart/form-data">
           <div class="form-group">
             <label>Remarks <span class="text-danger">*</span></label>
@@ -1001,13 +1235,55 @@ label {
                       placeholder="Salary confirmation remarks..."></textarea>
           </div>
           <div class="form-group">
-            <label>Attachment</label>
-            <input type="file" class="form-control-file" name="attachment">
+            <label>Attachment <small class="text-muted">(Signed document)</small></label>
+            <input type="file" class="form-control-file" name="attachment" accept=".pdf,.xls,.xlsx">
           </div>
           <button type="submit" class="btn btn-success btn-block">
-            <i class="fas fa-lock mr-1"></i> Confirm & Close
+            <i class="fas fa-lock mr-1"></i> Confirm & Close Recruitment
+          </button>
+          <hr style="margin:12px 0">
+          <button type="button" class="btn btn-danger btn-block modal-cancel-btn">
+            <i class="fas fa-ban mr-1"></i> Cancel This Recruitment Request
           </button>
         </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Cancel Confirmation Modal (HR Manager) -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#7f1d1d">
+        <h5 class="modal-title text-white"><i class="fas fa-exclamation-triangle mr-2 text-warning"></i>Cancel Recruitment</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.88rem;color:#374151;margin-bottom:6px">
+          You are about to cancel recruitment request:
+        </p>
+        <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:7px;padding:8px 12px;margin-bottom:14px">
+          <strong id="cancelDesignationLabel" style="color:#991b1b;font-size:0.9rem"></strong>
+          <div id="cancelIdLabel" style="font-size:0.76rem;color:#b91c1c"></div>
+        </div>
+        <div class="form-group">
+          <label style="font-size:0.84rem;font-weight:600;color:#374151">
+            Reason for Cancellation <span class="text-danger">*</span>
+          </label>
+          <textarea id="cancelRemarks" class="form-control" rows="3" required
+                    placeholder="Enter reason for cancelling this request..."></textarea>
+        </div>
+        <p style="font-size:0.78rem;color:#6b7280;margin-top:6px">This action <strong>cannot be undone</strong>. The request will be permanently closed.</p>
+      </div>
+      <div class="modal-footer" style="gap:8px;justify-content:flex-end">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-dismiss="modal">
+          <i class="fas fa-arrow-left mr-1"></i>Keep
+        </button>
+        <button type="button" class="btn btn-danger" id="cancelConfirmBtn">
+          <i class="fas fa-times mr-1"></i>Yes, Cancel It
+        </button>
       </div>
     </div>
   </div>
@@ -1022,8 +1298,6 @@ label {
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
 <script>
-/* ── Form toggle ── */
-
 /* ── Replacement field show/hide ── */
 function toggleReplacement(val) {
   document.getElementById("replacementBox").style.display = (val === "REPLACEMENT") ? "block" : "none";
@@ -1031,91 +1305,208 @@ function toggleReplacement(val) {
 
 /* ── Load locations by project ── */
 function loadLocations() {
-  var projectId = document.getElementById("projectSelect").value;
-  if (!projectId) return;
-  fetch("/locations/" + projectId)
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
+  var pid = document.getElementById("projectSelect").value;
+  if (!pid) return;
+  fetch("/locations/" + pid)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
       var sel = document.getElementById("locationSelect");
       sel.innerHTML = "";
-      data.forEach(function(loc) {
-        var opt = document.createElement("option");
-        opt.value = loc.id;
-        opt.text = loc.location_name;
-        sel.appendChild(opt);
+      data.forEach(function(loc){
+        var o = document.createElement("option");
+        o.value = loc.id; o.text = loc.location_name;
+        sel.appendChild(o);
       });
     });
 }
 
-/* ── Cancel task (HR Manager only) ── */
-function cancelTask(id) {
-  if (!confirm("Are you sure you want to CANCEL Recruitment #" + id + "? This cannot be undone.")) return;
-  fetch("/recruitment/" + id + "/cancel", { method: "POST" })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.message) {
-        alert(data.message);
-        location.reload();
-      } else if (data.error) {
-        alert("Error: " + data.error);
-      }
-    })
-    .catch(function() { alert("Request failed."); });
+/* ── Cancel task — opens confirmation modal ── */
+var _cancelTargetId = null;
+
+function openCancelModal(id, designation) {
+  _cancelTargetId = id;
+  document.getElementById("cancelDesignationLabel").textContent = designation || ("Recruitment #" + id);
+  document.getElementById("cancelIdLabel").textContent = "Request ID: #" + id;
+  document.getElementById("cancelRemarks").value = "";
+  $("#cancelModal").modal("show");
 }
 
-/* ── Modal openers ── */
-function toggleApprovalBtn(val) {
+document.getElementById("cancelConfirmBtn").addEventListener("click", function(){
+  if (!_cancelTargetId) return;
+  var remarks = document.getElementById("cancelRemarks").value.trim();
+  if (!remarks) {
+    document.getElementById("cancelRemarks").focus();
+    document.getElementById("cancelRemarks").style.borderColor = "#dc2626";
+    return;
+  }
+  document.getElementById("cancelRemarks").style.borderColor = "";
+  var id = _cancelTargetId;
+  var $btn = $(this);
+  $btn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Cancelling...');
+  fetch("/recruitment/" + id + "/cancel", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: "remarks=" + encodeURIComponent(remarks)
+  })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      $("#cancelModal").modal("hide");
+      if (d.message) { location.reload(); }
+      else {
+        alert("Error: " + (d.error || "Unknown"));
+        $btn.prop("disabled", false).html('<i class="fas fa-times mr-1"></i>Yes, Cancel It');
+      }
+    }).catch(function(){
+      alert("Request failed.");
+      $("#cancelModal").modal("hide");
+    });
+});
+
+/* ── Populate previous-step info panel ── */
+function fillPanel(panelId, remarksId, attachId, remarks, attach) {
+  var panel = document.getElementById(panelId);
+  if (!panel) return;
+  if (remarks || attach) {
+    panel.style.display = "block";
+    document.getElementById(remarksId).textContent = remarks ? "Remarks: " + remarks : "No remarks recorded.";
+    var aEl = document.getElementById(attachId);
+    if (attach) {
+      aEl.innerHTML = '<a href="/' + attach + '" target="_blank" download>'
+        + '<i class="fas fa-download mr-1"></i>Download Previous Attachment</a>';
+    } else {
+      aEl.innerHTML = '<span class="text-muted">No attachment.</span>';
+    }
+  } else {
+    panel.style.display = "none";
+  }
+}
+
+/* ── P1 approval: toggle button colour ── */
+$(document).on("change", "#approvalDecision", function(){
   var btn = document.getElementById("approvalSubmitBtn");
-  if (val === "NO") {
+  if (this.value === "NO") {
     btn.className = "btn btn-danger btn-block";
     btn.innerHTML = '<i class="fas fa-times mr-1"></i> Reject & Close';
   } else {
     btn.className = "btn btn-success btn-block";
     btn.innerHTML = '<i class="fas fa-check mr-1"></i> Submit Decision';
   }
-}
+});
 
-function openApprovalForm(id) {
-  document.getElementById("approvalForm").action = "/recruitment/" + id + "/approve";
-  $("#approvalModal").modal("show");
-}
+/* ── Generic modal trigger (act-btn) ── */
+$(document).on("click", ".act-btn", function(){
+  var $b = $(this);
+  var modalId  = $b.data("modal");
+  var formId   = $b.data("form");
+  var url      = $b.data("url");
+  var remarks  = $b.data("prev-remarks") || "";
+  var attach   = $b.data("prev-attach")  || "";
+  var panelId  = $b.data("panel");
+  var rEl      = $b.data("panel-remarks");
+  var aEl      = $b.data("panel-attach");
 
-function openGroupDModal(id) {
-  document.getElementById("groupDForm").action = "/recruitment/" + id + "/groupd";
-  $("#groupDModal").modal("show");
-}
+  document.getElementById(formId).action = url;
+  fillPanel(panelId, rEl, aEl, remarks, attach);
 
-function openWorkflowModal(id, title) {
-  document.getElementById("workflowForm").action = "/recruitment/" + id + "/stage_approve";
-  if (title) document.getElementById("workflowModalTitle").innerHTML =
-    '<i class="fas fa-forward mr-2"></i>' + title;
+  var taskId = url.match(/\/recruitment\/(\d+)\//);
+  if (taskId) $("#" + modalId).data("task-id", taskId[1]);
+
+  $("#" + modalId).modal("show");
+});
+
+/* ── In-modal Cancel button (P1 — legacy id wired via delegation below) ── */
+/* ── Workflow modal trigger (act-wf-btn) — P3/P4/P5/P6/P7 ── */
+$(document).on("click", ".act-wf-btn", function(){
+  var $b = $(this);
+  var url     = $b.data("url");
+  var title   = $b.data("title");
+  var remarks = $b.data("prev-remarks") || "";
+  var attach  = $b.data("prev-attach")  || "";
+
+  document.getElementById("workflowForm").action = url;
+  document.getElementById("workflowModalTitle").innerHTML =
+    '<i class="fas fa-forward mr-2 text-info"></i>' + title;
+  fillPanel("workflowPrevPanel","workflowPrevRemarks","workflowPrevAttachment", remarks, attach);
+
+  var taskId = url.match(/\/recruitment\/(\d+)\//);
+  if (taskId) $("#workflowModal").data("task-id", taskId[1]);
+
   $("#workflowModal").modal("show");
-}
+});
 
-function openCandidateDecision(id) {
-  document.getElementById("candidateForm").action = "/recruitment/" + id + "/candidate_decision";
-  $("#candidateModal").modal("show");
-}
+/* ── LOI modal trigger (act-loi-btn) — P9/P10 ── */
+$(document).on("click", ".act-loi-btn", function(){
+  var $b = $(this);
+  var url     = $b.data("url");
+  var stage   = $b.data("stage");
+  var remarks = $b.data("prev-remarks") || "";
+  var attach  = $b.data("prev-attach")  || "";
 
-function openLOIModal(id) {
-  document.getElementById("loiForm").action = "/recruitment/" + id + "/loi_process";
+  document.getElementById("loiForm").action = url;
+
+  if (stage === "P10") {
+    document.getElementById("loiModalTitle").innerHTML =
+      '<i class="fas fa-flag-checkered mr-2 text-success"></i>P10 — Share to IT & Complete Process';
+    document.getElementById("loiPrevLabel").innerHTML =
+      '<i class="fas fa-history mr-1"></i>P9 — LOI Issue Remarks';
+    document.getElementById("loiSubmitBtn").className = "btn btn-success btn-block";
+    document.getElementById("loiSubmitBtn").innerHTML = '<i class="fas fa-flag-checkered mr-1"></i> Share to IT & Mark Complete';
+  } else {
+    document.getElementById("loiModalTitle").innerHTML =
+      '<i class="fas fa-file-signature mr-2 text-primary"></i>P9 — Confirm Candidate & Issue LOI';
+    document.getElementById("loiPrevLabel").innerHTML =
+      '<i class="fas fa-history mr-1"></i>P8 — Candidate Selection Remarks';
+    document.getElementById("loiSubmitBtn").className = "btn btn-primary btn-block";
+    document.getElementById("loiSubmitBtn").innerHTML = '<i class="fas fa-check mr-1"></i> Approve & Continue';
+  }
+  fillPanel("loiPrevPanel","loiPrevRemarks","loiPrevAttachment", remarks, attach);
+
+  var taskId = url.match(/\/recruitment\/(\d+)\//);
+  if (taskId) $("#loiModal").data("task-id", taskId[1]);
+
   $("#loiModal").modal("show");
-}
+});
 
-function openSiteHRModal(id) {
-  document.getElementById("siteHRForm").action = "/recruitment/" + id + "/sitehr_approve";
+/* ── Site HR modal trigger (act-sitehr-btn) — P11/P12 ── */
+$(document).on("click", ".act-sitehr-btn", function(){
+  var $b = $(this);
+  var url     = $b.data("url");
+  var stage   = $b.data("stage");
+  var remarks = $b.data("prev-remarks") || "";
+  var attach  = $b.data("prev-attach")  || "";
+
+  document.getElementById("siteHRForm").action = url;
+
+  if (stage === "P12") {
+    document.getElementById("siteHRModalTitle").innerHTML =
+      '<i class="fas fa-calendar-alt mr-2 text-info"></i>P12 — Schedule Interview & Intimate HOD';
+    document.getElementById("siteHRPrevLabel").innerHTML =
+      '<i class="fas fa-history mr-1"></i>P11 — CV Receipt Remarks';
+  } else {
+    document.getElementById("siteHRModalTitle").innerHTML =
+      '<i class="fas fa-file-import mr-2 text-info"></i>P11 — Receive CVs from HOD / Reference';
+    document.getElementById("siteHRPrevLabel").innerHTML =
+      '<i class="fas fa-history mr-1"></i>P9/10 — LOI Process Remarks';
+  }
+  fillPanel("siteHRPrevPanel","siteHRPrevRemarks","siteHRPrevAttachment", remarks, attach);
+
+  var taskId = url.match(/\/recruitment\/(\d+)\//);
+  if (taskId) $("#siteHRModal").data("task-id", taskId[1]);
+
   $("#siteHRModal").modal("show");
-}
+});
 
-function openHODFinalModal(id) {
-  document.getElementById("hodFinalForm").action = "/recruitment/" + id + "/hod_final_approve";
-  $("#hodFinalModal").modal("show");
-}
-
-function openSalaryModal(id) {
-  document.getElementById("salaryForm").action = "/recruitment/" + id + "/salary_confirm";
-  $("#salaryModal").modal("show");
-}
+/* ── Universal in-modal Cancel button handler (all modals) ── */
+$(document).on("click", ".modal-cancel-btn, #modalCancelBtn", function(){
+  var $modal = $(this).closest(".modal");
+  var id = $modal.data("task-id");
+  if (!id) return;
+  // close current modal, open cancel modal
+  $modal.modal("hide");
+  $modal.one("hidden.bs.modal", function(){
+    openCancelModal(id, "");
+  });
+});
 </script>
 
 </body>

@@ -30,7 +30,7 @@ WORKFLOW_POWERS = {
     "P7": {"role": "HR_EXECUTIVE", "action": "approve"},
     "P8": {"role": "HOD", "action": "candidate"},
     "P9": {"role": "HR_MANAGER", "action": "approve_loi"},
-    "P10": {"role": "HR_EXECUTIVE", "action": "send_it"},
+    "P10": {"role": "HR_MANAGER", "action": "send_it"},
     "P11": {"role": "SITE_HR", "action": "approve_cv"},
     "P12": {"role": "SITE_HR", "action": "interview_done"},
     "P13": {"role": "HOD", "action": "final_approve"},
@@ -139,12 +139,17 @@ HOD_IDS = {
     "AR000011"
 }
 
+SUPER_ADMIN_IDS = {
+    "AR000001"
+}
+
 HR_ALL_ACCESS = HR_MANAGER_IDS | HR_EXECUTIVE_IDS | SITE_HR_EXECUTIVE_IDS
 RECRUITMENT_ACCESS_IDS = (
         HR_MANAGER_IDS |
         HR_EXECUTIVE_IDS |
         SITE_HR_EXECUTIVE_IDS |
-        HOD_IDS
+        HOD_IDS |
+        SUPER_ADMIN_IDS
 )
 STAGE_TIME_LIMITS = {
 
@@ -294,7 +299,7 @@ def dashboard():
     fixed_menus = {}
 
     # Only show HR recruitment to whitelisted employees
-    if emp_code in HR_ALL_ACCESS|HOD_IDS:
+    if emp_code in HR_ALL_ACCESS|HOD_IDS|SUPER_ADMIN_IDS:
 
         fixed_menus["HR Recruitment"] = [
             ("Recruitment Panel", url_for('fms_hr_recruitment_panel'))
@@ -488,6 +493,9 @@ def fms_hr_recruitment_panel():
 
     employees = cur.fetchall()
 
+    # Build emp_code → name map for created_by display
+    emp_name_map = {e['Emp_Code']: e['Person_Accountable'] for e in employees}
+
     # FETCH RECRUITMENT TASKS
     cur.execute("""
                 SELECT *
@@ -509,19 +517,20 @@ def fms_hr_recruitment_panel():
         "recruitment.html",
         powers=WORKFLOW_POWERS,
         projects=projects,
-
         locations=locations,
         employees=employees,
+        emp_name_map=emp_name_map,
         tasks=tasks,
         now=datetime.now(),
         help_data=WORKFLOW_HELP,
         person_Accountable=session["person_Accountable"],
         emp_code=session["emp_code"],
         photo=session["photo"],
-        can_create=session["emp_code"] in HOD_IDS,
+        can_create=session["emp_code"] in HOD_IDS or session["emp_code"] in SUPER_ADMIN_IDS,
         is_hr_manager=session["emp_code"] in HR_MANAGER_IDS,
-        is_hod = session["emp_code"] in HOD_IDS
-
+        is_hod=session["emp_code"] in HOD_IDS,
+        is_hr_executive=session["emp_code"] in HR_EXECUTIVE_IDS,
+        is_admin=session["emp_code"] in SUPER_ADMIN_IDS
     )
 @app.route('/locations/<int:project_id>')
 def fms_hr_recruitment_get_locations(project_id):
@@ -575,6 +584,8 @@ def fms_hr_recruitment_create():
 
     cur = mysql.connection.cursor()
 
+    created_by = session['emp_code']
+
     cur.execute("""
     INSERT INTO fms_hr_recruitment_annex1.recruitment_requests(
         project_id,
@@ -594,9 +605,10 @@ def fms_hr_recruitment_create():
         additional_note,
         workflow_stage,
         stage_started_at,
-        deadline_at
+        deadline_at,
+        created_by
     )
-    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'P1',NOW(),%s)
+    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'P1',NOW(),%s,%s)
     """,
     (
         project_id,
@@ -614,7 +626,8 @@ def fms_hr_recruitment_create():
         monthly_gross_salary,
         number_of_positions,
         additional_note,
-        deadline
+        deadline,
+        created_by
     ))
 
     mysql.connection.commit()
@@ -666,7 +679,11 @@ def fms_hr_recruitment_approve(id):
     return redirect(url_for('fms_hr_recruitment_panel'))
 def fms_hr_recruitment_can_view_task(emp_code, stage):
 
-    # HR Manager can see all stages
+    # Super Admin sees everything
+    if emp_code in SUPER_ADMIN_IDS:
+        return True
+
+    # HR Manager sees everything
     if emp_code in HR_MANAGER_IDS:
         return True
 
@@ -680,7 +697,7 @@ def fms_hr_recruitment_can_view_task(emp_code, stage):
         return emp_code in HOD_IDS
 
     if stage == "P10":
-        return emp_code in HR_EXECUTIVE_IDS
+        return emp_code in HR_MANAGER_IDS
 
     if stage in ["P11","P12","P14"]:
         return emp_code in SITE_HR_EXECUTIVE_IDS
@@ -702,7 +719,7 @@ def fms_hr_recruitment_groupd_check(id):
     if decision == "YES":
         next_stage = "P11"
     else:
-        next_stage = "P4"
+        next_stage = "P3"
 
     cur = mysql.connection.cursor()
 
@@ -1007,8 +1024,8 @@ def fms_hr_recruitment_loi_process(id):
     if stage == "P9" and emp_code not in HR_MANAGER_IDS:
         return jsonify({"error":"Only HR Manager allowed"}),403
 
-    if stage == "P10" and emp_code not in HR_EXECUTIVE_IDS:
-        return jsonify({"error":"Only HR Executive allowed"}),403
+    if stage == "P10" and emp_code not in HR_MANAGER_IDS:
+        return jsonify({"error":"Only HR Manager allowed for P10"}),403
 
     if stage == "P10":
         cur.execute("""

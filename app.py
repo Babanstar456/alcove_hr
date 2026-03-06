@@ -42,85 +42,85 @@ WORKFLOW_HELP = {
 "P1":{
 "who":"HR Manager",
 "time":"4 Hours",
-"how":"Approve recruitment request in portal"
+"how":"Is Recruitment Approved From Management?"
 },
 
 "P2":{
 "who":"HR Executive",
 "time":"2 Hours",
-"how":"Check if job belongs to Group-D"
+"how":"Is Post For Group - D?"
 },
 
 "P3":{
 "who":"HR Executive",
 "time":"2 Hours",
-"how":"Confirm JD with HOD using AI sheet"
+"how":"Confirm JD With HOD & Share JD With Consultant"
 },
 
 "P4":{
 "who":"HR Executive",
 "time":"2 Days",
-"how":"Receive CV via email"
+"how":"Receive CV's"
 },
 
 "P5":{
 "who":"HR Executive",
 "time":"2 Hours",
-"how":"Send CV to HOD"
+"how":"Send CVs To HOD"
 },
 
 "P6":{
 "who":"HOD",
 "time":"1 Day",
-"how":"Shortlist CV"
+"how":"Shortlist / Reject CVs & Fwd To HR"
 },
 
 "P7":{
 "who":"HR Executive",
 "time":"1 Day",
-"how":"Schedule interview"
+"how":"Schedule Interview & Intimate HOD"
 },
 
 "P8":{
 "who":"HOD",
 "time":"3 Days",
-"how":"Interview assessment"
+"how":"Is Candidate Selected After Interview?"
 },
 
 "P9":{
 "who":"HR Manager",
 "time":"2 Days",
-"how":"Verify documents and issue LOI"
+"how":"Confirmation Of Candidate For Final Selection & Issue LOI"
 },
 
 "P10":{
 "who":"HR Executive",
 "time":"1 Day",
-"how":"Share candidate details with IT"
+"how":"After Acknowledgement Of LOI Details Share To IT For Resource Allocation — Process Complete"
 },
 
 "P11":{
-"who":"Site HR",
+"who":"Site HR Executive",
 "time":"2 Days",
-"how":"Receive CV"
+"how":"Received CVs From HOD / Ref"
 },
 
 "P12":{
-"who":"Site HR",
+"who":"Site HR Executive",
 "time":"3 Days",
-"how":"Schedule interview"
+"how":"Schedule Interview & Intimate HOD"
 },
 
 "P13":{
 "who":"HOD",
 "time":"2 Days",
-"how":"Final selection"
+"how":"Confirmation Of Candidate For Final Selection"
 },
 
 "P14":{
-"who":"Site HR",
+"who":"Site HR Executive",
 "time":"1 Day",
-"how":"Confirm salary"
+"how":"Confirm Salary As Per Bracket & Signature To PM"
 }
 }
 HR_MANAGER_IDS = {
@@ -135,17 +135,15 @@ SITE_HR_EXECUTIVE_IDS = {
     "AR000003"
 }
 
-HOD_IDS = {
-    "AR000011"
+# HOD is dynamic — whoever creates a recruitment request is its HOD.
+# No hardcoded HOD_IDS set.
+
+SUPER_ADMIN_IDS = {
+    "AR000001"
 }
 
 HR_ALL_ACCESS = HR_MANAGER_IDS | HR_EXECUTIVE_IDS | SITE_HR_EXECUTIVE_IDS
-RECRUITMENT_ACCESS_IDS = (
-        HR_MANAGER_IDS |
-        HR_EXECUTIVE_IDS |
-        SITE_HR_EXECUTIVE_IDS |
-        HOD_IDS
-)
+RECRUITMENT_ACCESS_IDS = HR_ALL_ACCESS | SUPER_ADMIN_IDS
 STAGE_TIME_LIMITS = {
 
 "P1":4*60*60,
@@ -293,12 +291,10 @@ def dashboard():
 
     fixed_menus = {}
 
-    # Only show HR recruitment to whitelisted employees
-    if emp_code in HR_ALL_ACCESS|HOD_IDS:
-
-        fixed_menus["HR Recruitment"] = [
-            ("Recruitment Panel", url_for('fms_hr_recruitment_panel'))
-        ]
+    # All users can access HR Recruitment (any user can create a job)
+    fixed_menus["HR Recruitment"] = [
+        ("Recruitment Panel", url_for('fms_hr_recruitment_panel'))
+    ]
     return render_template(
         "dashboard.html",
         fixed_menus=fixed_menus,
@@ -442,15 +438,21 @@ def fms_hr_recruitment_cancel(task_id):
     if emp_code not in HR_MANAGER_IDS:
         return jsonify({"error":"Only HR Manager can cancel"}),403
 
+    remarks = request.form.get('remarks','')
+
     cur = mysql.connection.cursor()
 
     cur.execute("""
     UPDATE fms_hr_recruitment_annex1.recruitment_requests
-    SET status='CANCELLED'
+    SET status='CANCELLED',
+        cancel_remarks=%s,
+        cancelled_by=%s,
+        cancelled_at=NOW()
     WHERE id=%s
-    """,(task_id,))
+    """,(remarks, emp_code, task_id))
 
     mysql.connection.commit()
+    cur.close()
 
     return jsonify({"message":"Task Cancelled"})
 @app.route('/recruitment')
@@ -488,6 +490,9 @@ def fms_hr_recruitment_panel():
 
     employees = cur.fetchall()
 
+    # Build emp_code → name map for created_by display
+    emp_name_map = {e['Emp_Code']: e['Person_Accountable'] for e in employees}
+
     # FETCH RECRUITMENT TASKS
     cur.execute("""
                 SELECT *
@@ -501,27 +506,28 @@ def fms_hr_recruitment_panel():
     tasks = []
 
     for t in all_tasks:
-
-        if fms_hr_recruitment_can_view_task(session['emp_code'], t["workflow_stage"]):
+        if fms_hr_recruitment_can_view_task(session['emp_code'], t["workflow_stage"], t.get("created_by")):
             tasks.append(t)
+
+    emp_code = session["emp_code"]
 
     return render_template(
         "recruitment.html",
         powers=WORKFLOW_POWERS,
         projects=projects,
-
         locations=locations,
         employees=employees,
+        emp_name_map=emp_name_map,
         tasks=tasks,
         now=datetime.now(),
         help_data=WORKFLOW_HELP,
         person_Accountable=session["person_Accountable"],
-        emp_code=session["emp_code"],
+        emp_code=emp_code,
         photo=session["photo"],
-        can_create=session["emp_code"] in HOD_IDS,
-        is_hr_manager=session["emp_code"] in HR_MANAGER_IDS,
-        is_hod = session["emp_code"] in HOD_IDS
-
+        can_create=True,
+        is_hr_manager=emp_code in HR_MANAGER_IDS,
+        is_hr_executive=emp_code in HR_EXECUTIVE_IDS,
+        is_admin=emp_code in SUPER_ADMIN_IDS
     )
 @app.route('/locations/<int:project_id>')
 def fms_hr_recruitment_get_locations(project_id):
@@ -575,6 +581,8 @@ def fms_hr_recruitment_create():
 
     cur = mysql.connection.cursor()
 
+    created_by = session['emp_code']
+
     cur.execute("""
     INSERT INTO fms_hr_recruitment_annex1.recruitment_requests(
         project_id,
@@ -594,9 +602,10 @@ def fms_hr_recruitment_create():
         additional_note,
         workflow_stage,
         stage_started_at,
-        deadline_at
+        deadline_at,
+        created_by
     )
-    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'P1',NOW(),%s)
+    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'P1',NOW(),%s,%s)
     """,
     (
         project_id,
@@ -614,7 +623,8 @@ def fms_hr_recruitment_create():
         monthly_gross_salary,
         number_of_positions,
         additional_note,
-        deadline
+        deadline,
+        created_by
     ))
 
     mysql.connection.commit()
@@ -664,23 +674,30 @@ def fms_hr_recruitment_approve(id):
 
     flash("Recruitment request updated successfully", "success")
     return redirect(url_for('fms_hr_recruitment_panel'))
-def fms_hr_recruitment_can_view_task(emp_code, stage):
+def fms_hr_recruitment_can_view_task(emp_code, stage, created_by=None):
 
-    # HR Manager can see all stages
+    # Super Admin sees everything
+    if emp_code in SUPER_ADMIN_IDS:
+        return True
+
+    # HR Manager sees everything
     if emp_code in HR_MANAGER_IDS:
         return True
 
-    if stage == "P0":
-        return emp_code in HOD_IDS
+    # HOD stages: only the creator of the job (dynamic HOD) can see
+    is_creator = (emp_code == created_by)
 
-    if stage in ["P2","P3","P4","P5","P7"]:
+    if stage == "P1":
+        return is_creator  # creator sees their own job at P1
+
+    if stage in ["P2","P3","P4","P5","P7","P10"]:
         return emp_code in HR_EXECUTIVE_IDS
 
     if stage in ["P6","P8","P13"]:
-        return emp_code in HOD_IDS
+        return is_creator or emp_code in HR_EXECUTIVE_IDS
 
     if stage == "P10":
-        return emp_code in HR_EXECUTIVE_IDS
+        return emp_code in HR_MANAGER_IDS
 
     if stage in ["P11","P12","P14"]:
         return emp_code in SITE_HR_EXECUTIVE_IDS
@@ -702,7 +719,7 @@ def fms_hr_recruitment_groupd_check(id):
     if decision == "YES":
         next_stage = "P11"
     else:
-        next_stage = "P4"
+        next_stage = "P3"
 
     cur = mysql.connection.cursor()
 
@@ -769,8 +786,14 @@ def fms_hr_recruitment_hod_final_approve(id):
 
     emp_code = session['emp_code']
 
-    if emp_code not in HOD_IDS:
-        return jsonify({"error":"Only HOD can approve"}),403
+    cur = mysql.connection.cursor(DictCursor)
+    cur.execute("""
+    SELECT created_by FROM fms_hr_recruitment_annex1.recruitment_requests WHERE id=%s
+    """,(id,))
+    task = cur.fetchone()
+
+    if emp_code not in SUPER_ADMIN_IDS and emp_code not in HR_MANAGER_IDS and emp_code != task.get("created_by"):
+        return jsonify({"error":"Only the job creator (HOD) can approve"}),403
 
     remarks = request.form['remarks']
     file = request.files.get("attachment")
@@ -926,8 +949,14 @@ def fms_hr_recruitment_candidate_decision(id):
 
     emp_code = session['emp_code']
 
-    if emp_code not in HOD_IDS:
-        return jsonify({"error":"Only HOD can make this decision"}),403
+    cur = mysql.connection.cursor(DictCursor)
+    cur.execute("""
+    SELECT created_by FROM fms_hr_recruitment_annex1.recruitment_requests WHERE id=%s
+    """,(id,))
+    task = cur.fetchone()
+
+    if emp_code not in SUPER_ADMIN_IDS and emp_code not in HR_MANAGER_IDS and emp_code != task.get("created_by"):
+        return jsonify({"error":"Only the job creator (HOD) can make this decision"}),403
 
     decision = request.form['decision']
     remarks = request.form['remarks']
@@ -1008,7 +1037,7 @@ def fms_hr_recruitment_loi_process(id):
         return jsonify({"error":"Only HR Manager allowed"}),403
 
     if stage == "P10" and emp_code not in HR_EXECUTIVE_IDS:
-        return jsonify({"error":"Only HR Executive allowed"}),403
+        return jsonify({"error":"Only HR Executive allowed for P10"}),403
 
     if stage == "P10":
         cur.execute("""
