@@ -139,7 +139,7 @@ SITE_HR_EXECUTIVE_IDS = {
 # No hardcoded HOD_IDS set.
 
 SUPER_ADMIN_IDS = {
-    "AR000001"
+    "AR000011"
 }
 
 HR_ALL_ACCESS = HR_MANAGER_IDS | HR_EXECUTIVE_IDS | SITE_HR_EXECUTIVE_IDS
@@ -469,7 +469,6 @@ def fms_hr_recruitment_panel():
         FROM fms_hr_recruitment_annex1.projects
         ORDER BY project_name
     """)
-
     projects = cur.fetchall()
 
     # FETCH LOCATIONS
@@ -478,7 +477,6 @@ def fms_hr_recruitment_panel():
         FROM fms_hr_recruitment_annex1.locations
         ORDER BY location_name
     """)
-
     locations = cur.fetchall()
 
     # FETCH EMPLOYEES
@@ -487,24 +485,53 @@ def fms_hr_recruitment_panel():
         FROM fms_hr_recruitment_annex1.Employee_Master
         WHERE STATUS='ACTIVE'
     """)
-
     employees = cur.fetchall()
-
-    # Build emp_code → name map for created_by display
     emp_name_map = {e['Emp_Code']: e['Person_Accountable'] for e in employees}
 
-    # FETCH RECRUITMENT TASKS
+    # FETCH ALL TASKS FOR METRICS (all statuses, filtered by visibility)
     cur.execute("""
-                SELECT *
-                FROM fms_hr_recruitment_annex1.recruitment_requests
-                WHERE status = 'OPEN'
-                ORDER BY id DESC
-                """)
+        SELECT id, status, workflow_stage, deadline_at,
+               stage_started_at, created_by
+        FROM fms_hr_recruitment_annex1.recruitment_requests
+    """)
+    all_for_metrics = cur.fetchall()
 
+    now = datetime.now()
+    metrics = {
+        "pending":          0,
+        "completed":        0,
+        "rejected":         0,
+        "ontime_completed": 0,
+        "deadline_missed":  0,
+    }
+    for t in all_for_metrics:
+        # Only count tasks visible to this user
+        if not fms_hr_recruitment_can_view_task(session['emp_code'], t["workflow_stage"], t.get("created_by")):
+            continue
+        s  = t.get("status", "")
+        dl = t.get("deadline_at")
+        if s == "OPEN":
+            metrics["pending"] += 1
+            if dl and dl < now:
+                metrics["deadline_missed"] += 1
+        elif s == "CLOSED":
+            metrics["completed"] += 1
+            if dl and dl >= now:
+                metrics["ontime_completed"] += 1
+        elif s in ("CANCELLED", "REJECTED"):
+            metrics["rejected"] += 1
+
+    # FETCH OPEN TASKS FOR TABLE
+    cur.execute("""
+        SELECT *
+        FROM fms_hr_recruitment_annex1.recruitment_requests
+        WHERE status = 'OPEN'
+        ORDER BY id DESC
+    """)
     all_tasks = cur.fetchall()
+    cur.close()
 
     tasks = []
-
     for t in all_tasks:
         if fms_hr_recruitment_can_view_task(session['emp_code'], t["workflow_stage"], t.get("created_by")):
             tasks.append(t)
@@ -519,7 +546,8 @@ def fms_hr_recruitment_panel():
         employees=employees,
         emp_name_map=emp_name_map,
         tasks=tasks,
-        now=datetime.now(),
+        metrics=metrics,
+        now=now,
         help_data=WORKFLOW_HELP,
         person_Accountable=session["person_Accountable"],
         emp_code=emp_code,
@@ -1067,6 +1095,63 @@ def fms_hr_recruitment_loi_process(id):
     cur.close()
 
     return redirect(url_for('fms_hr_recruitment_panel'))
+
+# ================================= All Stage Dashboard (Super Admin only) ==================
+
+@app.route('/recruitment/stage_dashboard')
+def fms_hr_stage_dashboard():
+
+    if 'emp_code' not in session:
+        return redirect(url_for('login'))
+
+    emp_code = session['emp_code']
+
+    if emp_code not in SUPER_ADMIN_IDS:
+        flash("Access denied. Super Admin only.", "danger")
+        return redirect(url_for('fms_hr_recruitment_panel'))
+
+    cur = mysql.connection.cursor(DictCursor)
+
+    cur.execute("""
+        SELECT r.*,
+               p.project_name,
+               l.location_name,
+               e_rep.Person_Accountable  AS reporting_name,
+               e_rep2.Person_Accountable AS replacement_name,
+               e_cr.Person_Accountable   AS creator_name
+        FROM fms_hr_recruitment_annex1.recruitment_requests r
+        LEFT JOIN fms_hr_recruitment_annex1.projects p        ON r.project_id           = p.id
+        LEFT JOIN fms_hr_recruitment_annex1.locations l       ON r.location_id          = l.id
+        LEFT JOIN fms_hr_recruitment_annex1.Employee_Master e_rep  ON r.reporting_authority_id = e_rep.Emp_Code
+        LEFT JOIN fms_hr_recruitment_annex1.Employee_Master e_rep2 ON r.replacement_employee_id = e_rep2.Emp_Code
+        LEFT JOIN fms_hr_recruitment_annex1.Employee_Master e_cr   ON r.created_by             = e_cr.Emp_Code
+        ORDER BY r.id DESC
+    """)
+    all_tasks = cur.fetchall()
+
+    cur.execute("""
+        SELECT Emp_Code, Person_Accountable
+        FROM fms_hr_recruitment_annex1.Employee_Master
+        WHERE STATUS='ACTIVE'
+    """)
+    employees = cur.fetchall()
+    emp_name_map = {e['Emp_Code']: e['Person_Accountable'] for e in employees}
+
+    cur.close()
+
+    return render_template(
+        "stage_dashboard.html",
+        tasks=all_tasks,
+        emp_name_map=emp_name_map,
+        help_data=WORKFLOW_HELP,
+        stage_limits=STAGE_TIME_LIMITS,
+        now=datetime.now(),
+        person_Accountable=session["person_Accountable"],
+        emp_code=emp_code,
+        photo=session["photo"],
+        is_admin=True
+    )
+
 
 # ================================= Run Server ==============================================
 

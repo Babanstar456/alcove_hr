@@ -7,6 +7,8 @@
 <link rel="icon" href="{{ url_for('static', filename='images/Logo.png') }}">
 <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
 <style>
 :root {
@@ -223,6 +225,42 @@ body {
 .badge-deadline-ok { background: #d1fae5; color: #065f46; padding: 4px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
 .badge-deadline-miss { background: #fee2e2; color: #991b1b; padding: 4px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
 
+/* ── FILTER BAR ── */
+.filter-label { display:block; font-size:0.72rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.4px; margin-bottom:3px; }
+
+/* ── METRIC CARDS ── */
+.metric-cards { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:18px; }
+@media(max-width:992px){ .metric-cards{ grid-template-columns:repeat(3,1fr); } }
+@media(max-width:576px){ .metric-cards{ grid-template-columns:repeat(2,1fr); } }
+.metric-card {
+  border-radius:12px; padding:16px 18px; display:flex; align-items:center; gap:14px;
+  box-shadow:0 2px 10px rgba(0,0,0,0.07); position:relative; overflow:hidden;
+  transition:transform .15s, box-shadow .15s;
+}
+.metric-card:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,0.12); }
+.metric-card .mc-icon {
+  width:46px; height:46px; border-radius:10px; display:flex;
+  align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0;
+}
+.metric-card .mc-body { flex:1; min-width:0; }
+.metric-card .mc-value { font-size:1.75rem; font-weight:800; line-height:1; }
+.metric-card .mc-label { font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.5px; margin-top:3px; opacity:.75; }
+.metric-card .mc-bg {
+  position:absolute; right:-10px; bottom:-10px;
+  font-size:4.5rem; opacity:.07; pointer-events:none;
+}
+/* card colour themes */
+.mc-pending    { background:#eff6ff; color:#1e40af; }
+.mc-pending    .mc-icon { background:#dbeafe; color:#2563eb; }
+.mc-completed  { background:#f0fdf4; color:#14532d; }
+.mc-completed  .mc-icon { background:#dcfce7; color:#16a34a; }
+.mc-rejected   { background:#fff7ed; color:#9a3412; }
+.mc-rejected   .mc-icon { background:#ffedd5; color:#ea580c; }
+.mc-ontime     { background:#f0fdfa; color:#134e4a; }
+.mc-ontime     .mc-icon { background:#ccfbf1; color:#0d9488; }
+.mc-missed     { background:#fef2f2; color:#991b1b; }
+.mc-missed     .mc-icon { background:#fee2e2; color:#dc2626; }
+
 /* ── TABLE ── */
 .table th {
   background: #f1f5f9;
@@ -393,6 +431,12 @@ label {
     <a href="{{ url_for('fms_hr_recruitment_panel') }}" class="nav-pill active">
       <i class="fas fa-users"></i> HR Recruitment
     </a>
+    {% if is_admin %}
+    <a href="{{ url_for('fms_hr_stage_dashboard') }}" class="nav-pill"
+       style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)">
+      <i class="fas fa-layer-group"></i> All Stage Dashboard
+    </a>
+    {% endif %}
   </div>
 
   <!-- Right: profile + back button -->
@@ -403,9 +447,9 @@ label {
     </a>
 
     <div class="profile-chip" title="{{ person_Accountable }}">
-      <img src="{{ url_for('static', filename=photo) if photo else url_for('static', filename='images/placeholder-user.png') }}"
+      <img src="{{ url_for('static', filename=photo) if photo else '' }}"
            alt="Profile"
-           onerror="this.src='{{ url_for('static', filename='images/placeholder-user.png') }}'">
+           onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2216%22 fill=%22%23334155%22/%3E%3Ccircle cx=%2216%22 cy=%2213%22 r=%225%22 fill=%22%2394a3b8%22/%3E%3Cellipse cx=%2216%22 cy=%2226%22 rx=%228%22 ry=%225%22 fill=%22%2394a3b8%22/%3E%3C/svg%3E'">
       <div class="chip-info">
         <div class="chip-name">{{ person_Accountable }}</div>
         <div class="chip-id">{{ emp_code }}</div>
@@ -427,22 +471,138 @@ label {
 ══════════════════════════════════ -->
 <div class="main-content">
 
-  <!-- Page header + create button -->
+  <!-- Page header -->
   <div class="page-header">
     <div class="page-title">
       <i class="fas fa-stream"></i>
       Recruitment Workflow
     </div>
-
-    {% if can_create %}
-    <button class="btn btn-primary" onclick="$('#recruitmentFormModal').modal('show')">
-      <i class="fas fa-plus mr-1"></i> New Recruitment Request
-    </button>
-    {% endif %}
+    <div class="d-flex" style="gap:8px;flex-wrap:wrap;align-items:center">
+      <a href="/static/flowchart/hr_recruitment_flowchart.pdf" download
+         class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-project-diagram mr-1"></i>Flowchart
+      </a>
+      <button class="btn btn-sm btn-outline-info" onclick="exportTablePDF()">
+        <i class="fas fa-file-pdf mr-1"></i>Export PDF
+      </button>
+      {% if is_hr_manager or is_admin %}
+      <button class="btn btn-sm btn-outline-success" onclick="$('#importModal').modal('show')">
+        <i class="fas fa-file-import mr-1"></i>Import
+      </button>
+      {% endif %}
+      {% if can_create %}
+      <a href="http://togetherwecan.alcoverealty.in:5100/" target="_blank"
+         class="btn btn-sm btn-outline-warning">
+        <i class="fas fa-magic mr-1"></i>JD Generator
+      </a>
+      <button class="btn btn-sm btn-primary" onclick="$('#recruitmentFormModal').modal('show')">
+        <i class="fas fa-plus mr-1"></i>New Request
+      </button>
+      {% endif %}
+    </div>
   </div>
 
+  <!-- ── PERFORMANCE METRICS ── -->
+  <div class="metric-cards">
 
-  <!-- ── CREATE FORM (HOD only) ── -->
+    <div class="metric-card mc-pending">
+      <div class="mc-icon"><i class="fas fa-hourglass-half"></i></div>
+      <div class="mc-body">
+        <div class="mc-value">{{ metrics.pending }}</div>
+        <div class="mc-label">Pending Tasks</div>
+      </div>
+      <i class="fas fa-hourglass-half mc-bg"></i>
+    </div>
+
+    <div class="metric-card mc-completed">
+      <div class="mc-icon"><i class="fas fa-check-circle"></i></div>
+      <div class="mc-body">
+        <div class="mc-value">{{ metrics.completed }}</div>
+        <div class="mc-label">Completed Tasks</div>
+      </div>
+      <i class="fas fa-check-circle mc-bg"></i>
+    </div>
+
+    <div class="metric-card mc-rejected">
+      <div class="mc-icon"><i class="fas fa-ban"></i></div>
+      <div class="mc-body">
+        <div class="mc-value">{{ metrics.rejected }}</div>
+        <div class="mc-label">Rejected / Cancelled</div>
+      </div>
+      <i class="fas fa-ban mc-bg"></i>
+    </div>
+
+    <div class="metric-card mc-ontime">
+      <div class="mc-icon"><i class="fas fa-bolt"></i></div>
+      <div class="mc-body">
+        <div class="mc-value">{{ metrics.ontime_completed }}</div>
+        <div class="mc-label">On-Time Completed</div>
+      </div>
+      <i class="fas fa-bolt mc-bg"></i>
+    </div>
+
+    <div class="metric-card mc-missed">
+      <div class="mc-icon"><i class="fas fa-exclamation-triangle"></i></div>
+      <div class="mc-body">
+        <div class="mc-value">{{ metrics.deadline_missed }}</div>
+        <div class="mc-label">Deadline Missed</div>
+      </div>
+      <i class="fas fa-exclamation-triangle mc-bg"></i>
+    </div>
+
+  </div>
+
+  <!-- ── FILTER BAR ── -->
+  <div class="card mb-3" style="border:1px solid #e2e8f0">
+    <div class="card-body py-2 px-3">
+      <div class="form-row align-items-end">
+
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Task ID</label>
+          <input type="text" id="filterTaskId" class="form-control form-control-sm"
+                 placeholder="e.g. 42" oninput="applyFilters()">
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Designation</label>
+          <input type="text" id="filterDesignation" class="form-control form-control-sm"
+                 placeholder="Search..." oninput="applyFilters()">
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Process Step</label>
+          <select id="filterStep" class="form-control form-control-sm" onchange="applyFilters()">
+            <option value="">All Steps</option>
+            {% for i in range(1,15) %}
+            <option value="P{{ i }}">P{{ i }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Created From</label>
+          <input type="date" id="filterFromDate" class="form-control form-control-sm"
+                 onchange="applyFilters()">
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Plan End Date</label>
+          <input type="date" id="filterEndDate" class="form-control form-control-sm"
+                 onchange="applyFilters()">
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">&nbsp;</label>
+          <button class="btn btn-outline-secondary btn-sm btn-block" onclick="clearFilters()">
+            <i class="fas fa-times mr-1"></i>Clear Filters
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CREATE FORM ── -->
 
 
 
@@ -463,23 +623,22 @@ label {
   <div class="card">
     <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
       <span><i class="fas fa-tasks mr-2"></i>Recruitment Workflow Tasks</span>
-      <small class="text-secondary">Showing tasks visible to your role</small>
+      <small class="text-secondary" id="taskCount"></small>
     </div>
 
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-bordered table-hover mb-0">
+        <table class="table table-bordered table-hover mb-0" id="recruitmentTable">
           <thead>
             <tr>
-              <th style="width:50px">ID</th>
-              <th style="display:none">Designation</th>
-              <th style="width:80px">Stage</th>
-              <th>Requested By</th>
-              <th>Next Step</th>
-              <th>Deadline</th>
-              <th style="width:80px">Status</th>
-              <th>Remarks</th>
-              <th>Attachment</th>
+              <th style="width:72px">Task ID</th>
+              <th>Designation</th>
+              <th style="width:90px;text-align:center">Attachment</th>
+              <th>Project</th>
+              <th style="width:62px;text-align:center">Step</th>
+              <th>From Step</th>
+              <th style="width:130px">Planned Dt</th>
+              <th style="width:100px;text-align:center">Status</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -487,87 +646,25 @@ label {
           <tbody>
           {% if tasks %}
             {% for t in tasks %}
-            <tr>
+            <tr data-id="{{ t.id }}"
+                data-designation="{{ t.job_designation|lower|e }}"
+                data-stage="{{ t.workflow_stage }}"
+                data-created="{{ t.stage_started_at.strftime('%Y-%m-%d') if t.stage_started_at and t.stage_started_at is not string else '' }}"
+                data-deadline="{{ t.deadline_at.strftime('%Y-%m-%d') if t.deadline_at and t.deadline_at is not string else '' }}">
 
-              <!-- ID -->
+              <!-- Task ID -->
               <td><strong>#{{ t.id }}</strong></td>
 
-              <!-- Designation (hidden) -->
-              <td style="display:none">
+              <!-- Designation -->
+              <td style="font-size:0.87rem;min-width:140px">
                 {{ t.job_designation }}
                 {% if t.number_of_positions and t.number_of_positions > 1 %}
                 <span class="badge badge-secondary ml-1">×{{ t.number_of_positions }}</span>
                 {% endif %}
               </td>
 
-              <!-- Stage -->
-              <td class="text-center">
-                <span class="stage-badge">{{ t.workflow_stage }}</span>
-              </td>
-
-              <!-- Requested By (creator name mapped from emp_code) -->
-              <td style="white-space:nowrap;font-size:0.83rem">
-                {% if t.created_by %}
-                  <i class="fas fa-user-circle text-primary mr-1"></i>
-                  {{ emp_name_map.get(t.created_by, t.created_by) }}
-                  <div style="font-size:0.73rem;color:#94a3b8">{{ t.created_by }}</div>
-                {% else %}
-                  <span class="text-muted">—</span>
-                {% endif %}
-              </td>
-
-              <!-- Next Step description -->
-              <td>
-                {% set h = help_data.get(t.workflow_stage) %}
-                {% if h %}
-                <div class="next-step-label">
-                  <strong>{{ h.who }}</strong><br>
-                  {{ h.how }}<br>
-                  <i class="fas fa-clock text-muted" style="font-size:0.75rem"></i>
-                  <span style="font-size:0.75rem;color:#64748b">{{ h.time }}</span>
-                </div>
-                {% else %}
-                <span class="text-muted">—</span>
-                {% endif %}
-              </td>
-
-              <!-- Deadline -->
-              <td style="white-space:nowrap;font-size:0.82rem">
-                {% if t.deadline_at %}
-                  {{ t.deadline_at.strftime('%d/%m/%Y %H:%M') if t.deadline_at is not string else t.deadline_at }}
-                {% else %}
-                  <span class="text-muted">—</span>
-                {% endif %}
-              </td>
-
-              <!-- Status badge -->
-              <td class="text-center">
-                {% if t.status == 'CLOSED' or t.workflow_stage == 'P14' %}
-                  <span class="badge-deadline-ok"><i class="fas fa-check-circle mr-1"></i>Complete</span>
-                {% else %}
-                  <span class="badge-deadline-miss"><i class="fas fa-clock mr-1"></i>Pending</span>
-                {% endif %}
-              </td>
-
-              <!-- Remarks (inline, latest available remarks) -->
-              <td style="max-width:200px;font-size:0.82rem">
-                {% set latest_remarks =
-                    t.workflow_remarks or
-                    t.hr_manager_remarks or
-                    t.candidate_decision_remarks or
-                    t.loi_process_remarks or
-                    t.site_hr_remarks or
-                    t.hod_final_remarks or
-                    t.salary_confirmation_remarks or '' %}
-                {% if latest_remarks %}
-                  <span style="white-space:pre-wrap;color:#1e293b">{{ latest_remarks }}</span>
-                {% else %}
-                  <span class="text-muted">No remarks yet</span>
-                {% endif %}
-              </td>
-
-              <!-- Attachment (inline link) -->
-              <td style="font-size:0.82rem;white-space:nowrap">
+              <!-- Attachment -->
+              <td style="font-size:0.82rem;white-space:nowrap;text-align:center">
                 {% set latest_attach =
                     t.workflow_attachment or
                     t.attachment_path or
@@ -582,7 +679,7 @@ label {
                        style="color:#dc2626;font-weight:600">
                       <i class="fas fa-file-pdf mr-1"></i>View
                     </a>
-                  {% elif ext in ['xls', 'xlsx'] %}
+                  {% elif ext in ['xls','xlsx'] %}
                     <a href="/static/{{ latest_attach }}" download
                        style="color:#16a34a;font-weight:600">
                       <i class="fas fa-file-excel mr-1"></i>Download
@@ -595,6 +692,52 @@ label {
                   {% endif %}
                 {% else %}
                   <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Project -->
+              <td style="font-size:0.85rem;min-width:100px">
+                {% set found_proj = namespace(name='—') %}
+                {% for p in projects %}
+                  {% if p.id == t.project_id %}{% set found_proj.name = p.project_name %}{% endif %}
+                {% endfor %}
+                {{ found_proj.name }}
+              </td>
+
+              <!-- Step -->
+              <td class="text-center">
+                <span class="stage-badge">{{ t.workflow_stage }}</span>
+              </td>
+
+              <!-- From Step (who does this step & what action) -->
+              <td style="min-width:160px">
+                {% set h = help_data.get(t.workflow_stage) %}
+                {% if h %}
+                <div class="next-step-label">
+                  <strong style="font-size:0.82rem">{{ h.who }}</strong><br>
+                  <span style="font-size:0.77rem;color:#475569">{{ h.how }}</span><br>
+                  <span style="font-size:0.73rem;color:#94a3b8"><i class="fas fa-clock mr-1"></i>{{ h.time }}</span>
+                </div>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Planned Dt -->
+              <td style="white-space:nowrap;font-size:0.82rem">
+                {% if t.deadline_at %}
+                  {{ t.deadline_at.strftime('%d/%m/%Y %H:%M') if t.deadline_at is not string else t.deadline_at }}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+
+              <!-- Status -->
+              <td class="text-center">
+                {% if t.status == 'CLOSED' or t.workflow_stage == 'P14' %}
+                  <span class="badge-deadline-ok"><i class="fas fa-check-circle mr-1"></i>Complete</span>
+                {% else %}
+                  <span class="badge-deadline-miss"><i class="fas fa-clock mr-1"></i>Pending</span>
                 {% endif %}
               </td>
 
@@ -785,7 +928,7 @@ label {
 
           {% else %}
           <tr>
-            <td colspan="10">
+            <td colspan="9">
               <div class="empty-state">
                 <i class="fas fa-inbox d-block"></i>
                 No active recruitment tasks assigned to your role.
@@ -1507,7 +1650,174 @@ $(document).on("click", ".modal-cancel-btn, #modalCancelBtn", function(){
     openCancelModal(id, "");
   });
 });
+
+/* ── Filter & Search ── */
+function applyFilters() {
+  var idVal    = (document.getElementById("filterTaskId").value || "").trim().toLowerCase();
+  var desigVal = (document.getElementById("filterDesignation").value || "").trim().toLowerCase();
+  var stepVal  = document.getElementById("filterStep").value;
+  var fromVal  = document.getElementById("filterFromDate").value;
+  var endVal   = document.getElementById("filterEndDate").value;
+
+  var rows = document.querySelectorAll("#recruitmentTable tbody tr");
+  var visible = 0;
+  rows.forEach(function(row) {
+    var id       = (row.dataset.id || "");
+    var desig    = (row.dataset.designation || "");
+    var stage    = (row.dataset.stage || "");
+    var created  = (row.dataset.created || "");
+    var deadline = (row.dataset.deadline || "");
+    var show = true;
+    if (idVal    && id.indexOf(idVal) === -1)       show = false;
+    if (desigVal && desig.indexOf(desigVal) === -1) show = false;
+    if (stepVal  && stage !== stepVal)              show = false;
+    if (fromVal  && created  && created < fromVal)  show = false;
+    if (endVal   && deadline && deadline > endVal)  show = false;
+    row.style.display = show ? "" : "none";
+    if (show) visible++;
+  });
+  var total = rows.length;
+  document.getElementById("taskCount").textContent =
+    visible === total ? (total + " task" + (total !== 1 ? "s" : ""))
+                      : (visible + " of " + total + " tasks");
+}
+
+function clearFilters() {
+  ["filterTaskId","filterDesignation"].forEach(function(id){ document.getElementById(id).value=""; });
+  document.getElementById("filterStep").value = "";
+  document.getElementById("filterFromDate").value = "";
+  document.getElementById("filterEndDate").value = "";
+  applyFilters();
+}
+
+$(document).ready(function(){ applyFilters(); });
+
+/* ── Export Table as PDF ── */
+function exportTablePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+
+  doc.setFontSize(13);
+  doc.text("HR Recruitment Workflow Tasks", 40, 36);
+  doc.setFontSize(8);
+  doc.text("Exported: " + new Date().toLocaleString(), 40, 50);
+
+  const headers = ["Task ID","Designation","Project","Step","From Step","Planned Dt","Status"];
+  const rows = [];
+  document.querySelectorAll("#recruitmentTable tbody tr").forEach(function(tr){
+    if (tr.style.display === "none") return;
+    const cells = tr.querySelectorAll("td");
+    if (cells.length < 8) return;
+    rows.push([
+      cells[0].innerText.trim(),
+      cells[1].innerText.trim(),
+      cells[3].innerText.trim(),
+      cells[4].innerText.trim(),
+      cells[5].innerText.trim().substring(0,40),
+      cells[6].innerText.trim(),
+      cells[7].innerText.trim()
+    ]);
+  });
+
+  doc.autoTable({
+    startY: 60,
+    head: [headers],
+    body: rows,
+    styles: { fontSize: 7.5, cellPadding: 4 },
+    headStyles: { fillColor: [15,23,42], textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [240, 249, 255] },
+    margin: { left: 40, right: 40 }
+  });
+
+  doc.save("HR_Recruitment_Tasks_" + new Date().toISOString().slice(0,10) + ".pdf");
+}
 </script>
+
+<!-- ══ Import Modal ══ -->
+<div class="modal fade" id="importModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#14532d,#166534)">
+        <h5 class="modal-title text-white">
+          <i class="fas fa-file-import mr-2"></i>Import Recruitment Tasks
+        </h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Guidelines -->
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px 16px;margin-bottom:20px">
+          <div style="font-weight:700;color:#166534;font-size:0.85rem;margin-bottom:8px">
+            <i class="fas fa-info-circle mr-1"></i> Import Guidelines
+          </div>
+          <div class="row" style="font-size:0.81rem;color:#374151">
+            <div class="col-md-6">
+              <p style="margin-bottom:6px"><strong>File requirements:</strong></p>
+              <ul style="padding-left:16px;line-height:1.9;margin-bottom:8px">
+                <li>Accepted formats: <code>.xlsx</code>, <code>.xls</code>, <code>.csv</code></li>
+                <li>Row 1 must be the <strong>header row</strong></li>
+                <li>Max file size: <strong>5 MB</strong></li>
+                <li>All imported tasks start at <strong>P1</strong></li>
+                <li>Your Employee ID is saved as creator</li>
+              </ul>
+            </div>
+            <div class="col-md-6">
+              <p style="margin-bottom:6px"><strong>Required columns:</strong></p>
+              <ul style="padding-left:16px;line-height:1.9;margin-bottom:8px">
+                <li><code>job_designation</code></li>
+                <li><code>project_id</code></li>
+                <li><code>location_id</code></li>
+                <li><code>position_type</code> — <em>NEW</em> or <em>REPLACEMENT</em></li>
+                <li><code>educational_qualification</code></li>
+                <li><code>experience_required</code></li>
+                <li><code>gender_preference</code> — <em>ANY / MALE / FEMALE</em></li>
+                <li><code>monthly_gross_salary</code></li>
+                <li><code>number_of_positions</code></li>
+              </ul>
+            </div>
+            <div class="col-12">
+              <p style="margin-bottom:4px"><strong>Optional columns:</strong>
+                <code>job_responsibilities</code>, <code>age</code>,
+                <code>additional_note</code>, <code>reporting_authority_id</code>
+              </p>
+              <p style="margin:8px 0 0">
+                <a href="/static/templates/import_template.xlsx" download
+                   class="btn btn-sm btn-outline-success">
+                  <i class="fas fa-download mr-1"></i>Download Template File
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <form method="POST" action="/recruitment/import" enctype="multipart/form-data">
+          <div class="form-group">
+            <label style="font-weight:600;font-size:0.85rem">
+              Select File <span class="text-danger">*</span>
+            </label>
+            <div class="custom-file">
+              <input type="file" class="custom-file-input" id="importFile"
+                     name="import_file" accept=".xlsx,.xls,.csv" required
+                     onchange="document.getElementById('importFileLabel').textContent=this.files[0]?this.files[0].name:'Choose file...'">
+              <label class="custom-file-label" id="importFileLabel">Choose file...</label>
+            </div>
+            <small class="text-muted mt-1 d-block">Accepted: .xlsx, .xls, .csv — Max 5 MB</small>
+          </div>
+          <hr style="margin:16px 0">
+          <div class="d-flex justify-content-end" style="gap:8px">
+            <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">
+              <i class="fas fa-times mr-1"></i>Cancel
+            </button>
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-upload mr-1"></i>Upload & Import
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

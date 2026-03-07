@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>All Stage Dashboard — HR Recruitment</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="{{ url_for('static', filename='images/Logo.png') }}">
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root {
+  --primary: #0ea5e9;
+  --dark-nav: #0f172a;
+  --bg: #e8f4f8;
+  --amber: #f59e0b;
+}
+body { background:var(--bg); font-family:system-ui,-apple-system,sans-serif; margin:0; }
+
+/* ── TOPNAV ── */
+.top-navbar {
+  background:var(--dark-nav); padding:0 20px;
+  display:flex; align-items:center; justify-content:space-between;
+  height:62px; position:sticky; top:0; z-index:1000;
+  box-shadow:0 2px 8px rgba(0,0,0,0.3);
+}
+.top-navbar .brand { display:flex; align-items:center; gap:10px; }
+.top-navbar .brand img { height:38px; }
+.top-navbar .brand-text { color:#fff; font-weight:700; font-size:1.1rem; letter-spacing:.5px; }
+.top-navbar .brand-text span { color:var(--primary); }
+.top-navbar .nav-center { display:flex; align-items:center; gap:6px; }
+.top-navbar .nav-pill {
+  color:#cbd5e1; padding:6px 14px; border-radius:20px; font-size:.85rem;
+  text-decoration:none; transition:all .2s; display:flex; align-items:center; gap:6px;
+}
+.top-navbar .nav-pill:hover { background:rgba(255,255,255,.1); color:#fff; }
+.top-navbar .nav-pill.active { background:var(--primary); color:#fff; }
+.top-navbar .nav-right { display:flex; align-items:center; gap:10px; }
+.btn-back-dash {
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15);
+  color:#cbd5e1; padding:5px 12px; border-radius:8px; font-size:.8rem;
+  text-decoration:none; white-space:nowrap; transition:all .2s;
+}
+.btn-back-dash:hover { background:rgba(255,255,255,.15); color:#fff; text-decoration:none; }
+.profile-chip {
+  display:flex; align-items:center; gap:8px;
+  background:rgba(255,255,255,.07); border-radius:30px; padding:4px 12px 4px 4px;
+  border:1px solid rgba(255,255,255,.12);
+}
+.profile-chip img { width:32px; height:32px; border-radius:50%; object-fit:cover; }
+.chip-name { color:#f1f5f9; font-size:.82rem; font-weight:600; }
+.chip-id   { color:#64748b; font-size:.72rem; }
+
+/* ── MAIN ── */
+.main-content { padding:22px 24px; }
+.page-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:16px; flex-wrap:wrap; gap:10px;
+}
+.page-title { font-size:1.25rem; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:8px; }
+.page-title i { color:var(--amber); }
+
+/* ── FILTER BAR ── */
+.filter-label { display:block; font-size:.72rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.4px; margin-bottom:3px; }
+
+/* ── STAGE TABLE ── */
+.stage-table-wrap { overflow-x:auto; }
+.stage-table {
+  width:100%; border-collapse:collapse; font-size:.76rem;
+  white-space:nowrap;
+}
+.stage-table th, .stage-table td {
+  border:1px solid #cbd5e1; padding:5px 7px; vertical-align:middle;
+}
+.stage-table thead tr.header-main th {
+  background:#0f172a; color:#fff; font-weight:700; font-size:.78rem;
+  text-align:center; position:sticky; top:62px; z-index:5;
+}
+.stage-table thead tr.header-main th.info-col {
+  background:#1e3a5f; min-width:90px; max-width:130px;
+}
+.stage-table thead tr.header-stage th {
+  background:#1e40af; color:#e0f2fe; font-size:.72rem; font-weight:600;
+  text-align:center; position:sticky; top:101px; z-index:4;
+}
+.stage-table thead tr.header-sub th {
+  background:#dbeafe; color:#1e3a8a; font-size:.68rem; font-weight:600;
+  text-align:center; position:sticky; top:125px; z-index:3;
+}
+.stage-table tbody tr:hover { background:#f0f9ff; }
+.stage-table tbody td { color:#1e293b; }
+.stage-table tbody td.info-cell { background:#f8fafc; min-width:90px; max-width:140px; overflow:hidden; text-overflow:ellipsis; }
+.stage-table td.planned { background:#fefce8; color:#713f12; font-size:.7rem; }
+.stage-table td.actual  { background:#f0fdf4; color:#14532d; font-size:.7rem; }
+.stage-table td.attach-cell { background:#f1f5f9; text-align:center; }
+.stage-table td.attach-cell a { font-size:.7rem; font-weight:600; }
+.stage-table td.not-reached { background:#f1f5f9; color:#94a3b8; text-align:center; font-size:.68rem; }
+
+/* status badge */
+.badge-open     { background:#dbeafe; color:#1e40af; padding:2px 7px; border-radius:12px; font-size:.7rem; font-weight:600; }
+.badge-closed   { background:#d1fae5; color:#065f46; padding:2px 7px; border-radius:12px; font-size:.7rem; font-weight:600; }
+.badge-cancelled{ background:#fee2e2; color:#991b1b; padding:2px 7px; border-radius:12px; font-size:.7rem; font-weight:600; }
+</style>
+</head>
+<body>
+
+<!-- ══ TOPNAV ══ -->
+<nav class="top-navbar">
+  <div class="brand">
+    <img src="{{ url_for('static', filename='images/Logo.png') }}" alt="FMS Logo" onerror="this.style.display='none'">
+    <span class="brand-text">FMS <span>HR</span></span>
+  </div>
+
+  <div class="nav-center">
+    <a href="{{ url_for('dashboard') }}" class="nav-pill">
+      <i class="fas fa-th-large"></i> Dashboard
+    </a>
+    <a href="{{ url_for('fms_hr_recruitment_panel') }}" class="nav-pill">
+      <i class="fas fa-users"></i> HR Recruitment
+    </a>
+    <a href="{{ url_for('fms_hr_stage_dashboard') }}" class="nav-pill active"
+       style="background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.4)">
+      <i class="fas fa-layer-group"></i> All Stage Dashboard
+    </a>
+  </div>
+
+  <div class="nav-right">
+    <a href="{{ url_for('fms_hr_recruitment_panel') }}" class="btn-back-dash">
+      <i class="fas fa-arrow-left"></i> Back to Panel
+    </a>
+    <div class="profile-chip" title="{{ person_Accountable }}">
+      <img src="{{ url_for('static', filename=photo) if photo else '' }}"
+           alt="Profile"
+           onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2216%22 fill=%22%23334155%22/%3E%3Ccircle cx=%2216%22 cy=%2213%22 r=%225%22 fill=%22%2394a3b8%22/%3E%3Cellipse cx=%2216%22 cy=%2226%22 rx=%228%22 ry=%225%22 fill=%22%2394a3b8%22/%3E%3C/svg%3E'">
+      <div class="chip-info">
+        <div class="chip-name">{{ person_Accountable }}</div>
+        <div class="chip-id">{{ emp_code }}</div>
+      </div>
+    </div>
+    <a href="{{ url_for('logout') }}" class="nav-pill" style="padding:6px 10px"
+       onclick="return confirm('Logout?')">
+      <i class="fas fa-sign-out-alt"></i>
+    </a>
+  </div>
+</nav>
+
+
+<!-- ══ MAIN CONTENT ══ -->
+<div class="main-content">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="page-title">
+      <i class="fas fa-layer-group"></i>
+      All Stage Dashboard
+      <small style="font-size:.8rem;color:#64748b;font-weight:400;margin-left:4px">Super Admin View</small>
+    </div>
+    <div class="d-flex" style="gap:8px;flex-wrap:wrap;align-items:center">
+      <a href="/static/flowchart/hr_recruitment_flowchart.pdf" download
+         class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-project-diagram mr-1"></i>Flowchart
+      </a>
+      <button class="btn btn-sm btn-outline-info" onclick="exportStagePDF()">
+        <i class="fas fa-file-pdf mr-1"></i>Export PDF
+      </button>
+      <button class="btn btn-sm btn-outline-success" onclick="$('#sdImportModal').modal('show')">
+        <i class="fas fa-file-import mr-1"></i>Import
+      </button>
+    </div>
+  </div>
+
+  <!-- ── FILTER BAR ── -->
+  <div class="card mb-3" style="border:1px solid #e2e8f0">
+    <div class="card-body py-2 px-3">
+      <div class="form-row align-items-end">
+
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Task ID</label>
+          <input type="text" id="sdFilterId" class="form-control form-control-sm"
+                 placeholder="e.g. 42" oninput="sdApplyFilters()">
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Task Name</label>
+          <input type="text" id="sdFilterName" class="form-control form-control-sm"
+                 placeholder="Designation..." oninput="sdApplyFilters()">
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Process Step</label>
+          <select id="sdFilterStep" class="form-control form-control-sm" onchange="sdApplyFilters()">
+            <option value="">All Steps</option>
+            {% for i in range(1,15) %}
+            <option value="P{{ i }}">P{{ i }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Created From</label>
+          <input type="date" id="sdFilterFrom" class="form-control form-control-sm" onchange="sdApplyFilters()">
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">Plan End Date</label>
+          <input type="date" id="sdFilterEnd" class="form-control form-control-sm" onchange="sdApplyFilters()">
+        </div>
+
+        <div class="col-6 col-sm-4 col-md-2 mb-2">
+          <label class="filter-label">&nbsp;</label>
+          <button class="btn btn-outline-secondary btn-sm btn-block" onclick="sdClearFilters()">
+            <i class="fas fa-times mr-1"></i>Clear Filters
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STAGE TABLE CARD ── -->
+  <div class="card">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
+      <span><i class="fas fa-layer-group mr-2"></i>All Recruitment Tasks — Full Stage View</span>
+      <small class="text-secondary" id="sdTaskCount"></small>
+    </div>
+    <div class="card-body p-0">
+      <div class="stage-table-wrap">
+        <table class="stage-table" id="stageTable">
+          <thead>
+            <!-- Row 1: info headers + stage group headers -->
+            <tr class="header-main">
+              <th class="info-col" rowspan="3">Task ID</th>
+              <th class="info-col" rowspan="3">Task Name</th>
+              <th class="info-col" rowspan="3">Created<br>Emp ID</th>
+              <th class="info-col" rowspan="3">Job<br>Responsibilities</th>
+              <th class="info-col" rowspan="3">Location</th>
+              <th class="info-col" rowspan="3">New /<br>Replacement</th>
+              <th class="info-col" rowspan="3">Replacement<br>Name</th>
+              <th class="info-col" rowspan="3">Qualification</th>
+              <th class="info-col" rowspan="3">Experience<br>Required</th>
+              <th class="info-col" rowspan="3">Reporting<br>Authority</th>
+              <th class="info-col" rowspan="3">Monthly Gross<br>Salary</th>
+              <th class="info-col" rowspan="3">Project<br>Name</th>
+              <th class="info-col" rowspan="3">Remark</th>
+              <th class="info-col" rowspan="3">Attachment</th>
+              <!-- P1–P13 stage headers -->
+              {% for i in range(1,14) %}
+              <th colspan="3">P{{ i }}</th>
+              {% endfor %}
+            </tr>
+            <!-- Row 2: stage time limits -->
+            <tr class="header-stage">
+              {% set stage_times = {
+                1:"4 Hrs", 2:"2 Hrs", 3:"2 Hrs", 4:"2 Days",
+                5:"2 Hrs", 6:"1 Day", 7:"1 Day", 8:"3 Days",
+                9:"2 Days", 10:"1 Day", 11:"2 Days", 12:"3 Days", 13:"2 Days"
+              } %}
+              {% for i in range(1,14) %}
+              <th colspan="3">{{ stage_times[i] }}</th>
+              {% endfor %}
+            </tr>
+            <!-- Row 3: Planned / Actual / Attachment sub-headers -->
+            <tr class="header-sub">
+              {% for i in range(1,14) %}
+              <th>Planned</th>
+              <th>Actual</th>
+              <th>Attach</th>
+              {% endfor %}
+            </tr>
+          </thead>
+
+          <tbody>
+          {% if tasks %}
+            {% for t in tasks %}
+            {% set cur_stage_num = t.workflow_stage[1:]|int if t.workflow_stage else 0 %}
+            <tr
+              data-id="{{ t.id }}"
+              data-name="{{ (t.job_designation or '')|lower|e }}"
+              data-stage="{{ t.workflow_stage }}"
+              data-created="{{ t.stage_started_at.strftime('%Y-%m-%d') if t.stage_started_at and t.stage_started_at is not string else '' }}"
+              data-deadline="{{ t.deadline_at.strftime('%Y-%m-%d') if t.deadline_at and t.deadline_at is not string else '' }}">
+
+              <!-- Task ID -->
+              <td class="info-cell text-center">
+                <strong>#{{ t.id }}</strong><br>
+                {% if t.status == 'OPEN' %}
+                  <span class="badge-open">Open</span>
+                {% elif t.status == 'CLOSED' %}
+                  <span class="badge-closed">Closed</span>
+                {% elif t.status == 'CANCELLED' %}
+                  <span class="badge-cancelled">Cancelled</span>
+                {% endif %}
+              </td>
+
+              <!-- Task Name (Designation) -->
+              <td class="info-cell">
+                {{ t.job_designation or '—' }}
+                {% if t.number_of_positions and t.number_of_positions > 1 %}
+                <span class="badge badge-secondary ml-1" style="font-size:.65rem">×{{ t.number_of_positions }}</span>
+                {% endif %}
+              </td>
+
+              <!-- Created Emp ID -->
+              <td class="info-cell text-center" style="font-size:.72rem">
+                {% if t.created_by %}
+                  {{ emp_name_map.get(t.created_by, t.created_by) }}<br>
+                  <span style="color:#94a3b8">{{ t.created_by }}</span>
+                {% else %}—{% endif %}
+              </td>
+
+              <!-- Job Responsibilities -->
+              <td class="info-cell" style="max-width:140px;overflow:hidden;text-overflow:ellipsis"
+                  title="{{ t.job_responsibilities or '' }}">
+                {{ (t.job_responsibilities or '—')[:60] }}{% if t.job_responsibilities and t.job_responsibilities|length > 60 %}…{% endif %}
+              </td>
+
+              <!-- Location -->
+              <td class="info-cell">{{ t.location_name or '—' }}</td>
+
+              <!-- New / Replacement -->
+              <td class="info-cell text-center">{{ t.position_type or '—' }}</td>
+
+              <!-- Replacement Name -->
+              <td class="info-cell">{{ t.replacement_name or '—' }}</td>
+
+              <!-- Qualification -->
+              <td class="info-cell">{{ t.educational_qualification or '—' }}</td>
+
+              <!-- Experience Required -->
+              <td class="info-cell">{{ t.experience_required or '—' }}</td>
+
+              <!-- Reporting Authority -->
+              <td class="info-cell">{{ t.reporting_name or '—' }}</td>
+
+              <!-- Monthly Gross Salary -->
+              <td class="info-cell text-right">
+                {% if t.monthly_gross_salary %}
+                  ₹{{ "{:,.0f}".format(t.monthly_gross_salary|float) }}
+                {% else %}—{% endif %}
+              </td>
+
+              <!-- Project Name -->
+              <td class="info-cell">{{ t.project_name or '—' }}</td>
+
+              <!-- Remark (latest available) -->
+              <td class="info-cell" style="max-width:120px;overflow:hidden;text-overflow:ellipsis"
+                  title="{{ t.workflow_remarks or t.hr_manager_remarks or '' }}">
+                {% set r = t.workflow_remarks or t.hr_manager_remarks or t.candidate_decision_remarks or t.loi_process_remarks or t.site_hr_remarks or t.hod_final_remarks or t.salary_confirmation_remarks or '' %}
+                {{ r[:50] if r else '—' }}{% if r|length > 50 %}…{% endif %}
+              </td>
+
+              <!-- Attachment (latest) -->
+              <td class="info-cell attach-cell">
+                {% set la = t.workflow_attachment or t.attachment_path or t.candidate_decision_attachment or t.loi_process_attachment or t.hod_final_attachment or t.salary_confirmation_attachment or '' %}
+                {% if la %}
+                  {% set ext = la.rsplit('.',1)[-1].lower() %}
+                  {% if ext == 'pdf' %}
+                    <a href="/static/{{ la }}" target="_blank" style="color:#dc2626"><i class="fas fa-file-pdf"></i></a>
+                  {% else %}
+                    <a href="/static/{{ la }}" download style="color:#16a34a"><i class="fas fa-file-excel"></i></a>
+                  {% endif %}
+                {% else %}—{% endif %}
+              </td>
+
+              {# ── P1–P13 stage columns ── #}
+              {% for i in range(1, 14) %}
+              {% set pn = "P" ~ i %}
+              {% if i <= cur_stage_num %}
+                {# Stage has been reached — show planned/actual/attach #}
+
+                {# Planned date depends on stage #}
+                {% if i == 1 %}
+                  {% set planned = t.stage_started_at %}
+                {% else %}
+                  {% set planned = t.deadline_at %}
+                {% endif %}
+
+                {# Actual date — use stage-specific updated_at fields #}
+                {% if i == 1 %}
+                  {% set actual = t.hr_manager_approved_at %}
+                  {% set attach = t.attachment_path %}
+                {% elif i == 2 %}
+                  {% set actual = t.workflow_updated_at %}
+                  {% set attach = '' %}
+                {% elif i in [3,4,5,7] %}
+                  {% set actual = t.workflow_updated_at %}
+                  {% set attach = t.workflow_attachment %}
+                {% elif i == 6 %}
+                  {% set actual = t.workflow_updated_at %}
+                  {% set attach = t.workflow_attachment %}
+                {% elif i == 8 %}
+                  {% set actual = t.candidate_decided_at %}
+                  {% set attach = t.candidate_decision_attachment %}
+                {% elif i == 9 %}
+                  {% set actual = t.loi_processed_at %}
+                  {% set attach = t.loi_process_attachment %}
+                {% elif i == 10 %}
+                  {% set actual = t.loi_processed_at %}
+                  {% set attach = t.loi_process_attachment %}
+                {% elif i in [11,12] %}
+                  {% set actual = t.stage_started_at %}
+                  {% set attach = '' %}
+                {% elif i == 13 %}
+                  {% set actual = t.hod_final_approved_at %}
+                  {% set attach = t.hod_final_attachment %}
+                {% else %}
+                  {% set actual = none %}
+                  {% set attach = '' %}
+                {% endif %}
+
+                <td class="planned">
+                  {% if planned and planned is not string %}
+                    {{ planned.strftime('%d/%m/%y') }}
+                  {% elif planned %}{{ planned[:10] }}{% else %}—{% endif %}
+                </td>
+                <td class="actual">
+                  {% if actual and actual is not string %}
+                    {{ actual.strftime('%d/%m/%y') }}
+                  {% elif actual %}{{ actual[:10] }}{% else %}—{% endif %}
+                </td>
+                <td class="attach-cell">
+                  {% if attach %}
+                    {% set ext2 = attach.rsplit('.',1)[-1].lower() %}
+                    {% if ext2 == 'pdf' %}
+                      <a href="/static/{{ attach }}" target="_blank" style="color:#dc2626"><i class="fas fa-file-pdf"></i></a>
+                    {% else %}
+                      <a href="/static/{{ attach }}" download style="color:#16a34a"><i class="fas fa-file-excel"></i></a>
+                    {% endif %}
+                  {% else %}—{% endif %}
+                </td>
+
+              {% else %}
+                {# Stage not yet reached #}
+                <td class="not-reached">–</td>
+                <td class="not-reached">–</td>
+                <td class="not-reached">–</td>
+              {% endif %}
+              {% endfor %}
+
+            </tr>
+            {% endfor %}
+          {% else %}
+          <tr>
+            <td colspan="53" style="text-align:center;padding:40px;color:#94a3b8">
+              <i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:8px"></i>
+              No recruitment tasks found.
+            </td>
+          </tr>
+          {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-content -->
+
+
+<!-- ══ Import Modal ══ -->
+<div class="modal fade" id="sdImportModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#14532d,#166534)">
+        <h5 class="modal-title text-white">
+          <i class="fas fa-file-import mr-2"></i>Import Recruitment Tasks
+        </h5>
+        <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px 16px;margin-bottom:20px">
+          <div style="font-weight:700;color:#166534;font-size:.85rem;margin-bottom:8px">
+            <i class="fas fa-info-circle mr-1"></i> Import Guidelines
+          </div>
+          <div class="row" style="font-size:.81rem;color:#374151">
+            <div class="col-md-6">
+              <ul style="padding-left:16px;line-height:1.9;margin-bottom:8px">
+                <li>Accepted formats: <code>.xlsx</code>, <code>.xls</code>, <code>.csv</code></li>
+                <li>Row 1 must be the <strong>header row</strong></li>
+                <li>Max file size: <strong>5 MB</strong></li>
+                <li>All imported tasks start at <strong>P1</strong></li>
+                <li>Your Employee ID saved as creator</li>
+              </ul>
+            </div>
+            <div class="col-md-6">
+              <p style="margin-bottom:4px"><strong>Required columns:</strong></p>
+              <ul style="padding-left:16px;line-height:1.9;margin-bottom:8px">
+                <li><code>job_designation</code>, <code>project_id</code>, <code>location_id</code></li>
+                <li><code>position_type</code> — NEW or REPLACEMENT</li>
+                <li><code>educational_qualification</code>, <code>experience_required</code></li>
+                <li><code>gender_preference</code> — ANY / MALE / FEMALE</li>
+                <li><code>monthly_gross_salary</code>, <code>number_of_positions</code></li>
+              </ul>
+            </div>
+            <div class="col-12 mt-1">
+              <a href="/static/templates/import_template.xlsx" download class="btn btn-sm btn-outline-success">
+                <i class="fas fa-download mr-1"></i>Download Template
+              </a>
+            </div>
+          </div>
+        </div>
+        <form method="POST" action="/recruitment/import" enctype="multipart/form-data">
+          <div class="form-group">
+            <label style="font-weight:600;font-size:.85rem">Select File <span class="text-danger">*</span></label>
+            <div class="custom-file">
+              <input type="file" class="custom-file-input" id="sdImportFile" name="import_file"
+                     accept=".xlsx,.xls,.csv" required
+                     onchange="document.getElementById('sdImportLabel').textContent=this.files[0]?this.files[0].name:'Choose file...'">
+              <label class="custom-file-label" id="sdImportLabel">Choose file...</label>
+            </div>
+            <small class="text-muted mt-1 d-block">Max 5 MB</small>
+          </div>
+          <hr style="margin:16px 0">
+          <div class="d-flex justify-content-end" style="gap:8px">
+            <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success"><i class="fas fa-upload mr-1"></i>Upload & Import</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+/* ── Filters ── */
+function sdApplyFilters() {
+  var idVal   = (document.getElementById("sdFilterId").value   || "").trim().toLowerCase();
+  var nameVal = (document.getElementById("sdFilterName").value || "").trim().toLowerCase();
+  var stepVal = document.getElementById("sdFilterStep").value;
+  var fromVal = document.getElementById("sdFilterFrom").value;
+  var endVal  = document.getElementById("sdFilterEnd").value;
+
+  var rows = document.querySelectorAll("#stageTable tbody tr");
+  var visible = 0;
+  rows.forEach(function(row) {
+    var id       = (row.dataset.id   || "").toLowerCase();
+    var name     = (row.dataset.name || "").toLowerCase();
+    var stage    = (row.dataset.stage || "");
+    var created  = (row.dataset.created  || "");
+    var deadline = (row.dataset.deadline || "");
+    var show = true;
+    if (idVal   && id.indexOf(idVal)     === -1) show = false;
+    if (nameVal && name.indexOf(nameVal) === -1) show = false;
+    if (stepVal && stage !== stepVal)            show = false;
+    if (fromVal && created  && created < fromVal)   show = false;
+    if (endVal  && deadline && deadline > endVal)   show = false;
+    row.style.display = show ? "" : "none";
+    if (show) visible++;
+  });
+  var total = rows.length;
+  document.getElementById("sdTaskCount").textContent =
+    visible === total ? (total + " task" + (total !== 1 ? "s" : ""))
+                      : (visible + " of " + total + " tasks");
+}
+
+function sdClearFilters() {
+  ["sdFilterId","sdFilterName"].forEach(function(id){ document.getElementById(id).value=""; });
+  document.getElementById("sdFilterStep").value = "";
+  document.getElementById("sdFilterFrom").value = "";
+  document.getElementById("sdFilterEnd").value = "";
+  sdApplyFilters();
+}
+
+$(document).ready(function(){ sdApplyFilters(); });
+
+/* ── Export PDF ── */
+function exportStagePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:"landscape", unit:"pt", format:"a3" });
+
+  doc.setFontSize(13);
+  doc.text("HR Recruitment — All Stage Dashboard", 40, 36);
+  doc.setFontSize(8);
+  doc.text("Exported: " + new Date().toLocaleString(), 40, 50);
+
+  // Build headers
+  var head1 = ["ID","Task Name","Emp ID","Responsibilities","Location","Type",
+               "Replacement","Qualification","Experience","Reporting","Salary","Project","Remark","Attach"];
+  var stages = ["P1","P2","P3","P4","P5","P6","P7","P8","P9","P10","P11","P12","P13"];
+  stages.forEach(function(s) { head1.push(s+" Planned", s+" Actual", s+" Attach"); });
+
+  var rows = [];
+  document.querySelectorAll("#stageTable tbody tr").forEach(function(tr) {
+    if (tr.style.display === "none") return;
+    var cells = tr.querySelectorAll("td");
+    var row = [];
+    cells.forEach(function(td) { row.push(td.innerText.trim().substring(0,25)); });
+    if (row.length > 0) rows.push(row);
+  });
+
+  doc.autoTable({
+    startY: 60,
+    head: [head1],
+    body: rows,
+    styles: { fontSize: 5.5, cellPadding: 2, overflow: "linebreak" },
+    headStyles: { fillColor: [15,23,42], textColor: 255, fontStyle: "bold", fontSize: 6 },
+    alternateRowStyles: { fillColor: [240,249,255] },
+    margin: { left: 20, right: 20 },
+    columnStyles: { 0: { cellWidth: 28 }, 1: { cellWidth: 60 } }
+  });
+
+  doc.save("HR_Stage_Dashboard_" + new Date().toISOString().slice(0,10) + ".pdf");
+}
+</script>
+
+</body>
+</html>
